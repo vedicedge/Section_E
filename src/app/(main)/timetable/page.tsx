@@ -69,6 +69,30 @@ async function TimetableBody() {
     );
   }
 
+  if (state.status === 'disabled' || state.status === 'pending') {
+    return (
+      <div className={styles.empty}>
+        <Hourglass className={styles.emptyArt} />
+        <h2 className={styles.emptyTitle}>
+          {state.status === 'disabled' ? (
+            <>
+              Timetable is <em>off.</em>
+            </>
+          ) : (
+            <>
+              Waiting for the <em>first copy.</em>
+            </>
+          )}
+        </h2>
+        <p className="muted">
+          {state.status === 'disabled'
+            ? 'The admin has switched the timetable off for now.'
+            : 'The timetable source is set up but hasn’t sent a copy yet. It will appear here automatically.'}
+        </p>
+      </div>
+    );
+  }
+
   if (state.status === 'error') {
     return (
       <div className={styles.empty}>

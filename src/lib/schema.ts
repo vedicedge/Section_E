@@ -110,4 +110,49 @@ export const MIGRATIONS: string[] = [
     reset_at TIMESTAMPTZ NOT NULL
   );
   `,
+
+  // 2 — homework, per-student completion, web-push subscriptions, notification de-duplication.
+  `
+  CREATE TABLE homework (
+    id            TEXT PRIMARY KEY,
+    subject_code  TEXT NOT NULL,
+    subject_title TEXT NOT NULL,
+    title         TEXT NOT NULL,
+    details       TEXT NOT NULL DEFAULT '',
+    given_on      DATE NOT NULL,
+    due_mode      TEXT NOT NULL CHECK (due_mode IN ('next_class', 'date')),
+    due_date      DATE,
+    due_time      TEXT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX homework_given_idx ON homework (given_on);
+  CREATE INDEX homework_due_idx ON homework (due_date);
+
+  CREATE TABLE homework_done (
+    homework_id TEXT NOT NULL REFERENCES homework(id) ON DELETE CASCADE,
+    roll_no     TEXT NOT NULL,
+    done_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (homework_id, roll_no)
+  );
+
+  CREATE TABLE push_subscriptions (
+    endpoint     TEXT PRIMARY KEY,
+    roll_no      TEXT NOT NULL,
+    p256dh       TEXT NOT NULL,
+    auth         TEXT NOT NULL,
+    user_agent   TEXT,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_sent_at TIMESTAMPTZ,
+    failures     INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX push_subscriptions_roll_idx ON push_subscriptions (roll_no);
+
+  CREATE TABLE notification_log (
+    key        TEXT PRIMARY KEY,
+    sent_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    recipients INTEGER NOT NULL DEFAULT 0,
+    detail     TEXT
+  );
+  `,
 ];

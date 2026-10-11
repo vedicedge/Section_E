@@ -36,6 +36,13 @@ export const env = {
     return 'dev-only-insecure-session-secret-change-me-please';
   },
 
+  /** Web Push (VAPID) keys — generate with `npx web-push generate-vapid-keys`. Without them reminders are off. */
+  vapidPublicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || null,
+  vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || null,
+  vapidSubject: process.env.VAPID_SUBJECT || 'mailto:admin@example.com',
+  /** Shared secret for the scheduled reminder job (Vercel Cron sends it as a Bearer token). */
+  cronSecret: process.env.CRON_SECRET || null,
+
   adminPassword: process.env.ADMIN_PASSWORD || null,
   adminPasswordHash: process.env.ADMIN_PASSWORD_HASH || null,
 };

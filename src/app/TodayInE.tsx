@@ -36,11 +36,23 @@ export async function TodayInE() {
     </div>
   );
 
-  if (state.status === 'unconfigured' || state.status === 'error' || !first) {
+  if (state.status !== 'ok' && state.status !== 'stale') {
+    const message =
+      state.status === 'error'
+        ? `We couldn’t reach the official timetable just now. ${state.error.message}`
+        : state.status === 'pending'
+          ? 'The timetable source is set up — the first copy will appear here shortly.'
+          : 'The live timetable has not been connected yet — the admin can link it from the dashboard.';
+    return (
+      <>
+        {header}
+        <p className={styles.empty}>{message}</p>
+      </>
+    );
+  }
+  if (!first) {
     let message = 'No classes on the timetable for the next seven days.';
-    if (state.status === 'unconfigured') message = 'The live timetable has not been connected yet — the admin can link it from the dashboard.';
-    else if (state.status === 'error') message = `We couldn’t reach the official timetable just now. ${state.error.message}`;
-    else if (!state.data.detection.ok) message = 'The official timetable is live — open it to see this week’s schedule.';
+    if (!state.data.detection.ok) message = 'The official timetable is live — open it to see this week’s schedule.';
     return (
       <>
         {header}
