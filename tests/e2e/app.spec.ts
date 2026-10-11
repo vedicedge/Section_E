@@ -163,4 +163,112 @@ test.describe.serial('Section E', () => {
     await page.getByRole('tab', { name: 'Official sheet' }).click();
     await expect(page.getByRole('table')).toContainText('SAMPLE TIMETABLE');
   });
+  test('admin posts homework; students see it, privately tick it off', async ({ page, browser }) => {
+    await adminLogin(page);
+    await page.goto('/admin/homework');
+    await expect(page.getByRole('heading', { name: 'Post homework' })).toBeVisible();
+
+    // SM meets again tomorrow in the fixture timetable, so "Next class" resolves to tomorrow.
+    await page.getByLabel('Homework for SM').fill('Read case 4 and answer Q1–3');
+    await expect(page.getByRole('radio', { name: /Next class/ }).first()).toBeEnabled();
+    await page.getByRole('button', { name: 'Post homework for SM' }).click();
+    await expect(page.getByText(/Posted 1/)).toBeVisible();
+
+    // CF with a fixed date three days out.
+    const due = await page.evaluate(() => {
+      const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+      d.setDate(d.getDate() + 3);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    });
+    await page.getByLabel('Homework for CF').fill('Solve the WACC problem set');
+    await page.getByLabel('Due date for CF').fill(due);
+    await page.getByRole('button', { name: 'Post homework for CF' }).click();
+    await expect(page.getByText(/Posted 1/)).toBeVisible();
+
+    // Not registered → no homework content.
+    const anon = await browser.newPage();
+    await anon.goto('/homework');
+    await expect(anon.getByRole('link', { name: /Register/ }).first()).toBeVisible();
+    expect(await anon.content()).not.toContain('Read case 4');
+    await anon.close();
+
+    await signIn(page, '26PGDM902', '2468');
+    await page.goto('/homework');
+    const tomorrow = page.getByRole('region', { name: /Due tomorrow/ });
+    await expect(tomorrow).toContainText('Read case 4 and answer Q1–3');
+    await expect(page.getByRole('region', { name: /Coming up/ })).toContainText('Solve the WACC problem set');
+    const tick = tomorrow.getByRole('checkbox').first();
+    await tick.check();
+    await expect(tick).toBeChecked();
+    await page.waitForTimeout(1500);
+    await page.reload();
+    await expect(page.getByRole('region', { name: /Due tomorrow/ }).getByRole('checkbox').first()).toBeChecked();
+
+    // Landing shows what's due tomorrow for the signed-in student.
+    await page.goto('/');
+    await expect(page.getByText('Read case 4 and answer Q1–3')).toBeVisible();
+  });
+
+  test('reminder endpoints are protected and work', async ({ page, request }) => {
+    await signIn(page, '26PGDM902', '2468');
+    const sub = await page.request.post('/api/push/subscribe', {
+      data: { subscription: { endpoint: 'https://fcm.googleapis.com/fcm/send/e2e-test-device', keys: { p256dh: 'BOq1GdWMUM-E7d6qtQMa4cgOUsm27hxx', auth: 'e2e-auth-secret' } } },
+    });
+    expect(sub.status()).toBe(200);
+    const bad = await request.post('/api/push/subscribe', {
+      data: { subscription: { endpoint: 'http://169.254.169.254/latest', keys: { p256dh: 'x', auth: 'y' } } },
+    });
+    expect([401, 422]).toContain(bad.status());
+
+    expect((await request.get('/api/cron/homework-reminders')).status()).toBe(401);
+    expect((await request.get('/api/cron/homework-reminders', { headers: { Authorization: 'Bearer wrong' } })).status()).toBe(401);
+    const ok = await request.get('/api/cron/homework-reminders', { headers: { Authorization: 'Bearer e2e-cron-secret' } });
+    expect(ok.status()).toBe(200);
+    expect(await ok.json()).toHaveProperty('date');
+  });
+
+  test('restricted sheet: the Apps Script relay pushes the timetable', async ({ page, request }) => {
+    await adminLogin(page);
+    const put = await page.request.put('/api/admin/timetable', {
+      data: { mode: 'relay', url: 'https://docs.google.com/spreadsheets/d/1E2eRestrictedSheetId_abcdefgh/edit?usp=sharing' },
+    });
+    expect(put.status()).toBe(200);
+    const keyRes = await page.request.post('/api/admin/timetable/relay-key', { data: {} });
+    expect(keyRes.status()).toBe(200);
+    const { key, script } = await keyRes.json();
+    expect(script).toContain('1E2eRestrictedSheetId_abcdefgh');
+    expect(script).toContain(key);
+    expect(script).toContain('/api/timetable/ingest');
+
+    const endpoint = '/api/timetable/ingest';
+    const modifiedAt = new Date().toISOString();
+    expect((await request.post(endpoint, { data: { modifiedAt } })).status()).toBe(401);
+    const auth = { Authorization: `Bearer ${key}` };
+    const hb1 = await request.post(endpoint, { headers: auth, data: { fileName: 'Timetable.xlsx', modifiedAt } });
+    expect(hb1.status()).toBe(200);
+    expect((await hb1.json()).needFile).toBe(true);
+    const { readFile } = await import('node:fs/promises');
+    const data = (await readFile(join(FIXTURES, 'timetable.xlsx'))).toString('base64');
+    const push = await request.post(endpoint, { headers: auth, data: { fileName: 'Timetable.xlsx', modifiedAt, data } });
+    expect(push.status()).toBe(200);
+    const hb2 = await request.post(endpoint, { headers: auth, data: { fileName: 'Timetable.xlsx', modifiedAt } });
+    expect((await hb2.json()).needFile).toBe(false);
+
+    await page.goto('/timetable');
+    await expect(page.getByText(/relay/i).first()).toBeVisible();
+    await expect(page.getByText('Strategic Management').first()).toBeVisible();
+  });
+
+  test('the timetable can be switched off', async ({ page }) => {
+    await adminLogin(page);
+    expect((await page.request.put('/api/admin/timetable', { data: { enabled: false } })).status()).toBe(200);
+    await page.goto('/timetable');
+    await expect(page.getByText(/switched off/i).first()).toBeVisible();
+    await page.goto('/');
+    await expect(page.getByRole('navigation', { name: 'Features' }).getByRole('link', { name: /Live Timetable/ })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Open menu' }).click();
+    await expect(page.getByRole('dialog').getByRole('link', { name: /Homework/ })).toBeVisible();
+    await expect(page.getByRole('dialog').getByRole('link', { name: /Live Timetable/ })).toHaveCount(0);
+    expect((await page.request.put('/api/admin/timetable', { data: { enabled: true } })).status()).toBe(200);
+  });
 });
