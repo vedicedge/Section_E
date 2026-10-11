@@ -233,3 +233,24 @@ export async function homeworkForAdmin() {
   const views = await resolveAll(records, ctx);
   return views.map((v) => ({ ...v, doneCount: counts.get(v.id) ?? 0 }));
 }
+
+/* --------------------------------------------------- cheap counters */
+
+/**
+ * Items a student hasn't ticked off that are due on `date` (stored deadline snapshot — cheap enough
+ * for the header on every page; the homework page itself resolves against the live timetable).
+ */
+export async function pendingDueCount(rollNo: string, date: string): Promise<number> {
+  const row = await queryOne<{ n: number }>(
+    `SELECT count(*)::int AS n FROM homework h
+     WHERE h.due_date = $2 AND NOT EXISTS (SELECT 1 FROM homework_done d WHERE d.homework_id = h.id AND d.roll_no = $1)`,
+    [rollNo, date],
+  );
+  return Number(row?.n ?? 0);
+}
+
+/** Homework still open for the section: due today or later, or with the date still to be confirmed. */
+export async function openHomeworkCount(today = todayISO()): Promise<number> {
+  const row = await queryOne<{ n: number }>(`SELECT count(*)::int AS n FROM homework WHERE due_date >= $1 OR due_date IS NULL`, [today]);
+  return Number(row?.n ?? 0);
+}
