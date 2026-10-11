@@ -1,0 +1,481 @@
+/* ------------------------------------------------------------------ hero */
+
+.hero {
+  position: relative;
+  background: var(--vermilion);
+  color: var(--ink-on-red);
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  isolation: isolate;
+  --engrave-bg: var(--vermilion);
+}
+/* subtle paper grain over the red, like a printed plate */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.18;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.1  0 0 0 0 0.03  0 0 0 0 0.01  0 0 0 0.55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+.heroMain {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.heroTop {
+  text-align: center;
+  padding-top: clamp(4px, 1.4vh, 18px);
+}
+
+.kicker {
+  font-size: 11.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 550;
+}
+
+.headline {
+  margin-top: 8px;
+  font-family: var(--serif);
+  font-size: clamp(21px, 2.3vw, 34px);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+.headline em {
+  font-style: italic;
+}
+
+/* The index of features — the page's main typographic event. */
+.features {
+  position: relative;
+  z-index: 3;
+  text-align: center;
+  margin-top: clamp(10px, 2.6vh, 34px);
+}
+.features ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.features li {
+  display: block;
+  line-height: 1.02;
+}
+
+.feature,
+.slash {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(44px, 7.4vw, 122px);
+  letter-spacing: -0.045em;
+}
+.feature {
+  display: inline-block;
+  transition:
+    color 0.35s var(--ease),
+    transform 0.5s var(--ease);
+}
+.feature em {
+  font-style: italic;
+  font-weight: 300;
+}
+.feature :global(.count) {
+  font-size: 0.24em;
+  top: 0.55em;
+  margin-left: 0.2em;
+}
+.feature:hover,
+.feature:focus-visible,
+.featureActive {
+  color: var(--bone);
+}
+.feature:focus-visible {
+  outline-color: var(--bone);
+  outline-offset: 6px;
+}
+
+.scriptWord {
+  font-family: var(--script);
+  letter-spacing: 0;
+  font-size: 1.04em;
+  line-height: 0.5;
+  padding: 0 0.04em 0 0.02em;
+}
+
+.slash {
+  display: inline-block;
+  margin-left: 0.1em;
+  font-weight: 300;
+  transform: scale(0.72) translateY(-0.02em);
+  transform-origin: left center;
+  opacity: 0.85;
+}
+
+.featureLabel {
+  white-space: nowrap;
+}
+
+.featureCaption {
+  display: none;
+}
+
+.caption {
+  margin: clamp(10px, 1.8vh, 22px) auto 0;
+  min-height: 1.6em;
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+
+/* Touch devices have no hover: show each feature's caption beneath it instead. */
+@media (hover: none), (max-width: 720px) {
+  .caption {
+    display: none;
+  }
+  .featureCaption {
+    display: block;
+    margin: 10px 0 18px;
+    font-family: var(--sans);
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .slash {
+    display: none;
+  }
+}
+
+/* Giant script watermark, as in the reference ("Edgar Degas" behind the portrait). */
+.watermark {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2%;
+  height: 46%;
+  z-index: 0;
+  pointer-events: none;
+}
+.watermark span {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--script);
+  font-size: clamp(110px, 23vw, 400px);
+  line-height: 1;
+  white-space: nowrap;
+  color: rgb(22 10 6 / 0.08);
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 0.6s var(--ease),
+    transform 0.8s var(--ease);
+}
+.watermark .watermarkOn {
+  opacity: 1;
+  transform: none;
+}
+
+/* Side notes with engravings */
+.notes {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 320px) minmax(0, 1fr) minmax(0, 320px);
+  align-items: center;
+  padding-top: clamp(20px, 4vh, 48px);
+  padding-bottom: clamp(48px, 10vh, 120px);
+}
+.note {
+  grid-column: 1;
+}
+.noteRight {
+  grid-column: 3;
+}
+.noteArt {
+  width: 86px;
+  height: auto;
+  margin-bottom: 12px;
+}
+.note p {
+  max-width: 31ch;
+}
+
+/* The monumental "E" — our stand-in for the reference's portrait. */
+.monument {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  z-index: 1;
+  transform: translate(-50%, 13%);
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: min(64vh, 50vw);
+  line-height: 0.8;
+  pointer-events: none;
+  user-select: none;
+  animation: rise 1.2s var(--ease) both 0.15s;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 22%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 13%);
+  }
+}
+.monumentLetter {
+  position: relative;
+  display: block;
+  color: var(--ink-on-red);
+}
+.monumentShadow {
+  position: absolute;
+  left: 0.045em;
+  top: 0.03em;
+  color: transparent;
+  background: repeating-linear-gradient(135deg, var(--ink-on-red) 0 1.3px, transparent 1.3px 5px);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+@media (max-width: 900px) {
+  .notes {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 28px;
+    align-items: start;
+    padding-bottom: 0;
+    flex: none;
+  }
+  .note {
+    grid-column: 1;
+  }
+  .noteRight {
+    grid-column: 2;
+    justify-self: end;
+  }
+  .monument {
+    position: relative;
+    left: auto;
+    transform: none;
+    align-self: center;
+    margin-top: 12px;
+    margin-bottom: -0.16em;
+    font-size: min(72vw, 52vh);
+    animation: none;
+  }
+  .watermark {
+    bottom: 0;
+    height: 34%;
+  }
+}
+
+@media (max-width: 560px) {
+  .notes {
+    gap: 18px;
+    padding-top: 12px;
+  }
+  .note :global(.caps) {
+    font-size: 11px;
+  }
+  .noteArt {
+    width: 58px;
+  }
+  .feature,
+  .slash {
+    font-size: clamp(38px, 12.4vw, 60px);
+  }
+}
+
+/* --------------------------------------------------------------- marquee */
+
+.marquee {
+  background: var(--ink-on-red);
+  color: var(--bone);
+  overflow: hidden;
+  border-top: 1px solid rgb(0 0 0 / 0.2);
+}
+.marqueeTrack {
+  display: flex;
+  width: max-content;
+  padding: 16px 0;
+  animation: marquee 48s linear infinite;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: clamp(20px, 2.4vw, 30px);
+  white-space: nowrap;
+}
+.marqueeTrack i {
+  font-style: normal;
+  color: var(--vermilion);
+  margin: 0 0.6em;
+  font-size: 0.7em;
+  vertical-align: 0.15em;
+}
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* ------------------------------------------------------------- manifesto */
+
+.manifesto {
+  padding: clamp(64px, 10vw, 140px) 0 clamp(56px, 8vw, 110px);
+}
+.manifestoTitle {
+  margin-top: 18px;
+  font-family: var(--serif);
+  font-size: clamp(40px, 6.2vw, 100px);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+  max-width: 17ch;
+}
+.nowrap {
+  white-space: nowrap;
+}
+.manifestoTitle :global(.script) {
+  color: var(--accent);
+  font-size: 1.04em;
+  letter-spacing: 0;
+}
+
+.points {
+  list-style: none;
+  padding: 0;
+  margin: clamp(48px, 7vw, 96px) 0 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  border-top: 1px solid var(--line-strong);
+}
+.points li {
+  padding: 22px 24px 8px 0;
+  border-right: 1px solid var(--line);
+  padding-left: 20px;
+}
+.points li:first-child {
+  padding-left: 0;
+}
+.points li:last-child {
+  border-right: 0;
+}
+.pointNum {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+  color: var(--accent);
+}
+.points h3 {
+  margin-top: 26px;
+  font-family: var(--serif);
+  font-size: clamp(26px, 2.4vw, 34px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+.points p {
+  margin-top: 10px;
+  color: var(--muted);
+  max-width: 32ch;
+}
+
+.stats {
+  margin: clamp(56px, 8vw, 110px) 0 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+}
+.stats div {
+  border-top: 1px solid var(--line-strong);
+  padding-top: 14px;
+}
+.stats dt {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 550;
+  color: var(--muted);
+}
+.stats dd {
+  margin: 6px 0 0;
+  font-family: var(--serif);
+  font-size: clamp(64px, 8vw, 128px);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+}
+
+@media (max-width: 960px) {
+  .points {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .points li:nth-child(2) {
+    border-right: 0;
+  }
+  .points li:nth-child(3) {
+    padding-left: 0;
+  }
+  .points li:nth-child(n + 3) {
+    border-top: 1px solid var(--line);
+  }
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 560px) {
+  .points {
+    grid-template-columns: 1fr;
+  }
+  .points li {
+    padding-left: 0;
+    border-right: 0;
+    border-top: 1px solid var(--line);
+  }
+  .points li:first-child {
+    border-top: 0;
+  }
+}
+
+/* ----------------------------------------------------------------- today */
+
+.today {
+  padding: clamp(56px, 8vw, 110px) 0;
+  background: var(--paper-2);
+}
+
+/* ------------------------------------------------------------------- cta */
+
+.ctaBand {
+  padding: clamp(56px, 8vw, 100px) 0;
+}
+.ctaInner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px 40px;
+}
+.ctaText {
+  font-family: var(--serif);
+  font-size: clamp(30px, 3.6vw, 52px);
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  max-width: 22ch;
+}
+.ctaText em {
+  font-style: italic;
+  color: var(--accent);
+}

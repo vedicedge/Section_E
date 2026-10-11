@@ -1,0 +1,29 @@
+.logo {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.18em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.word {
+  font-family: var(--script);
+  font-size: 34px;
+  letter-spacing: 0;
+  transform: translateY(2px);
+}
+
+.letter {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 34px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+@media (max-width: 520px) {
+  .word,
+  .letter {
+    font-size: 28px;
+  }
+}

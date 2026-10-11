@@ -1,0 +1,99 @@
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+.q {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.qHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.qNum {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 26px;
+  color: var(--accent);
+}
+.points {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.points input {
+  width: 74px;
+  min-height: 34px;
+  padding: 4px 8px;
+}
+.icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: none;
+  font-size: 15px;
+  line-height: 1;
+}
+.icon:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.danger {
+  color: var(--accent);
+}
+
+.options {
+  display: grid;
+  gap: 8px;
+}
+.option {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 34px;
+  gap: 8px;
+  align-items: center;
+}
+.mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-family: var(--serif);
+  font-size: 18px;
+  font-style: italic;
+}
+.mark input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ok);
+}
+.optionCorrect :global(.input) {
+  border-color: var(--ok);
+  box-shadow: inset 3px 0 0 var(--ok);
+}
+.addOption {
+  justify-self: start;
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.warn {
+  font-size: 13px;
+  color: var(--warn);
+}

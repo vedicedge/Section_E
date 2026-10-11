@@ -1,0 +1,147 @@
+.head {
+  margin-bottom: clamp(32px, 5vw, 64px);
+}
+.head :global(.page-title) {
+  margin-top: 14px;
+}
+.head :global(.page-title) em {
+  color: var(--accent);
+}
+
+/* Empty state */
+.empty {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: clamp(24px, 5vw, 64px);
+  align-items: center;
+  padding: clamp(32px, 5vw, 64px) 0;
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line);
+}
+.emptyArt {
+  width: clamp(90px, 12vw, 150px);
+  color: var(--ink);
+}
+.emptyTitle {
+  font-family: var(--serif);
+  font-size: clamp(38px, 5vw, 76px);
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+  max-width: 16ch;
+}
+.emptyTitle em {
+  font-style: italic;
+  color: var(--accent);
+}
+.emptyText {
+  margin-top: 16px;
+  max-width: 52ch;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.sections {
+  display: grid;
+  gap: clamp(40px, 6vw, 72px);
+}
+.groupTitle {
+  font-family: var(--serif);
+  font-size: clamp(30px, 3vw, 44px);
+  letter-spacing: -0.02em;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.grid {
+  list-style: none;
+  margin: 22px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr));
+  gap: 16px;
+}
+
+.card {
+  min-width: 0;
+}
+.cardLink {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  height: 100%;
+  padding: 22px 22px 20px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  transition:
+    border-color 0.25s,
+    transform 0.35s var(--ease);
+}
+.cardLink:hover {
+  border-color: var(--ink);
+  transform: translateY(-3px);
+}
+.cardTop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.subject {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 650;
+  color: var(--muted);
+}
+.cardTitle {
+  font-family: var(--serif);
+  font-size: 32px;
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  padding-right: 28px;
+}
+.cardDesc {
+  color: var(--muted);
+  font-size: 14px;
+}
+.cardMeta {
+  margin: 4px 0 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.cardMeta dt {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.cardMeta dd {
+  margin: 2px 0 0;
+  font-family: var(--serif);
+  font-size: 20px;
+}
+.mine {
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 550;
+}
+.go {
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  font-size: 20px;
+  transition: transform 0.3s var(--ease);
+}
+.cardLink:hover .go {
+  transform: translateX(4px);
+}
+
+@media (max-width: 640px) {
+  .empty {
+    grid-template-columns: 1fr;
+  }
+}

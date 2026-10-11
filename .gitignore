@@ -1,0 +1,30 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# local database + secrets
+.data/
+.env
+.env*.local
+
+# never commit student data — upload seating plans through /admin/seating
+*.xlsx
+*.xls
+*.csv
+!tests/fixtures/*.xlsx
+
+# testing
+test-results/
+playwright-report/
+coverage/
+
+.DS_Store
+.vercel
+
+# e2e fixtures (generated)
+tests/e2e/.fixtures/

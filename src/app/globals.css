@@ -1,0 +1,524 @@
+/* ==========================================================================
+   Section E — design tokens
+   Vermilion + ink, an editorial serif for display, a copperplate script for
+   flourishes, and a quiet grotesque for UI copy (after the museum-catalogue
+   reference). Inner pages sit on warm paper; dark mode swaps to ink.
+   ========================================================================== */
+
+:root {
+  --vermilion: #f0360f;
+  --vermilion-deep: #d22c08;
+  --ink-on-red: #160a06;
+  --bone: #fff6ee;
+
+  --paper: #f3ece2;
+  --paper-2: #e9e0d3;
+  --card: #fbf7f1;
+  --ink: #17110e;
+  --muted: rgb(23 17 14 / 0.62);
+  --faint: rgb(23 17 14 / 0.38);
+  --line: rgb(23 17 14 / 0.16);
+  --line-strong: rgb(23 17 14 / 0.42);
+  --accent: #c82d0a; /* red that passes AA as text on paper */
+  --accent-fill: var(--vermilion);
+  --on-accent: #fff6ee;
+  --ok: #2f6b3c;
+  --warn: #9a5b00;
+  --focus: #1f5eff;
+
+  --serif: 'Cormorant Garamond', 'Cormorant', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --script: 'Pinyon Script', 'Snell Roundhand', 'Apple Chancery', cursive;
+  --sans: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --gutter: clamp(16px, 3.6vw, 48px);
+  --max: 1440px;
+  --radius: 3px;
+  --ease: cubic-bezier(0.2, 0.7, 0.1, 1);
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --paper: #110c0a;
+    --paper-2: #1a1310;
+    --card: #19120f;
+    --ink: #f2e9df;
+    --muted: rgb(242 233 223 / 0.66);
+    --faint: rgb(242 233 223 / 0.4);
+    --line: rgb(242 233 223 / 0.14);
+    --line-strong: rgb(242 233 223 / 0.4);
+    --accent: #ff6a45;
+    --ok: #7fc48d;
+    --warn: #f0b35a;
+    --focus: #8fb0ff;
+    color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] {
+  --paper: #110c0a;
+  --paper-2: #1a1310;
+  --card: #19120f;
+  --ink: #f2e9df;
+  --muted: rgb(242 233 223 / 0.66);
+  --faint: rgb(242 233 223 / 0.4);
+  --line: rgb(242 233 223 / 0.14);
+  --line-strong: rgb(242 233 223 / 0.4);
+  --accent: #ff6a45;
+  --ok: #7fc48d;
+  --warn: #f0b35a;
+  --focus: #8fb0ff;
+  color-scheme: dark;
+}
+
+/* ------------------------------------------------------------------ base */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+::selection {
+  background: var(--vermilion);
+  color: var(--bone);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: 400;
+}
+
+p {
+  margin: 0;
+}
+
+.sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -60px;
+  z-index: 100;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 10px 14px;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+.skip-link:focus {
+  top: 12px;
+}
+
+/* -------------------------------------------------------------- typography */
+
+.serif {
+  font-family: var(--serif);
+}
+.script {
+  font-family: var(--script);
+  font-weight: 400;
+}
+
+/* Small uppercase catalogue copy, as in the reference's side notes. */
+.caps {
+  font-family: var(--sans);
+  font-size: 12.5px;
+  line-height: 1.5;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  font-weight: 450;
+}
+
+.eyebrow {
+  font-family: var(--sans);
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* "(12)" superscript counts in italic serif. */
+.count {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 0.3em;
+  font-weight: 400;
+  letter-spacing: 0;
+  vertical-align: top;
+  position: relative;
+  top: 0.35em;
+  margin-left: 0.12em;
+  white-space: nowrap;
+  font-variant-numeric: lining-nums;
+}
+
+.display {
+  font-family: var(--serif);
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  line-height: 0.95;
+}
+
+.page-title {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(46px, 8.4vw, 132px);
+  letter-spacing: -0.04em;
+  line-height: 0.92;
+}
+.page-title em,
+.display em {
+  font-style: italic;
+  font-weight: 400;
+}
+.page-title .script,
+.display .script {
+  letter-spacing: 0;
+  font-size: 1.08em;
+  line-height: 0.6;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* ----------------------------------------------------------------- layout */
+
+.container {
+  width: 100%;
+  max-width: var(--max);
+  margin: 0 auto;
+  padding-left: var(--gutter);
+  padding-right: var(--gutter);
+}
+
+.page {
+  padding-top: clamp(28px, 5vw, 64px);
+  padding-bottom: clamp(64px, 9vw, 120px);
+  min-height: 70vh;
+}
+
+.rule {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------- controls */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 550;
+  transition:
+    transform 0.25s var(--ease),
+    background 0.2s,
+    color 0.2s,
+    border-color 0.2s,
+    opacity 0.2s;
+  white-space: nowrap;
+}
+.btn:hover {
+  transform: translateY(-1px);
+}
+.btn:active {
+  transform: translateY(0);
+}
+.btn[disabled],
+.btn[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+.btn--accent {
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: var(--on-accent);
+}
+.btn--ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+.btn--ghost:hover {
+  border-color: var(--ink);
+}
+.btn--danger {
+  background: transparent;
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.btn--sm {
+  min-height: 34px;
+  padding: 0 14px;
+  font-size: 11.5px;
+}
+.btn--block {
+  width: 100%;
+}
+
+.link {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--line-strong);
+  transition: text-decoration-color 0.2s;
+}
+.link:hover {
+  text-decoration-color: currentColor;
+}
+
+.arrow-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 550;
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 2px;
+}
+.arrow-link span[aria-hidden] {
+  transition: transform 0.25s var(--ease);
+}
+.arrow-link:hover span[aria-hidden] {
+  transform: translateX(4px);
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+.field > span:first-child,
+.label {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 550;
+  color: var(--muted);
+}
+.input,
+.textarea,
+.select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line-strong);
+  background: var(--card);
+  color: var(--ink);
+  font-size: 15px;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.textarea {
+  min-height: 96px;
+  resize: vertical;
+  line-height: 1.5;
+}
+.input:focus,
+.textarea:focus,
+.select:focus {
+  outline: none;
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 28%, transparent);
+}
+.hint {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--vermilion);
+}
+
+/* status pills: "● LIVE", "DRAFT" … */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pill--live {
+  border-color: transparent;
+  background: var(--vermilion);
+  color: var(--bone);
+}
+.pill--ok {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 45%, transparent);
+}
+.pill--warn {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 50%, transparent);
+}
+.pill--muted {
+  color: var(--muted);
+}
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.dot--pulse {
+  animation: pulse 1.8s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.notice {
+  border: 1px solid var(--line-strong);
+  border-left: 3px solid var(--accent);
+  background: var(--card);
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  font-size: 14px;
+}
+.notice--ok {
+  border-left-color: var(--ok);
+}
+.notice--warn {
+  border-left-color: var(--warn);
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--paper-2) 0%, color-mix(in srgb, var(--paper-2) 50%, var(--card)) 50%, var(--paper-2) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+  border-radius: var(--radius);
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* Reveal-on-load for editorial blocks */
+.reveal {
+  animation: reveal 0.9s var(--ease) both;
+}
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

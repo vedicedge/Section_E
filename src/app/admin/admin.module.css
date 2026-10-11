@@ -1,0 +1,300 @@
+/* Login */
+.loginWrap {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: var(--vermilion);
+  color: var(--ink-on-red);
+}
+.loginCard {
+  width: min(400px, 100%);
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  padding: 36px 28px;
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 6px;
+  box-shadow: 0 40px 80px -40px rgb(0 0 0 / 0.5);
+}
+.loginArt {
+  width: 84px;
+  color: var(--ink);
+}
+.loginTitle {
+  font-family: var(--serif);
+  font-size: 44px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+/* Shell */
+.shell {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  min-height: 100vh;
+}
+.nav {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 24px 18px;
+  background: #140d0a;
+  color: #f2e9df;
+}
+.navBrand {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 28px;
+}
+.navBrand em {
+  font-family: var(--serif);
+}
+.navBadge {
+  margin-left: 6px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 650;
+  color: var(--vermilion);
+}
+.nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.nav ul a {
+  display: block;
+  padding: 9px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  color: rgb(242 233 223 / 0.72);
+}
+.nav ul a:hover {
+  color: #f2e9df;
+  background: rgb(255 255 255 / 0.06);
+}
+.nav ul a.navOn {
+  color: #f2e9df;
+  background: rgb(240 54 15 / 0.22);
+  box-shadow: inset 2px 0 0 var(--vermilion);
+}
+.navOut {
+  margin-top: auto;
+  background: none;
+  border: 1px solid rgb(242 233 223 / 0.25);
+  color: rgb(242 233 223 / 0.8);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.main {
+  padding: clamp(24px, 3.4vw, 44px) clamp(16px, 3.4vw, 48px) 80px;
+  min-width: 0;
+}
+
+/* Page furniture */
+.pageHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.title {
+  font-family: var(--serif);
+  font-size: clamp(38px, 4vw, 56px);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.lede {
+  margin-top: 8px;
+  color: var(--muted);
+  max-width: 70ch;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  gap: 14px;
+}
+.card {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+a.card:hover {
+  border-color: var(--ink);
+}
+.cardLabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 650;
+  color: var(--muted);
+}
+.cardValue {
+  font-family: var(--serif);
+  font-size: 48px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.cardNote {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.panel {
+  padding: 20px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: grid;
+  gap: 16px;
+}
+.panelTitle {
+  font-family: var(--serif);
+  font-size: 28px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+.stack {
+  display: grid;
+  gap: 20px;
+}
+.row2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.row3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.table th,
+.table td {
+  text-align: left;
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+.table thead th {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  font-weight: 650;
+  background: var(--paper-2);
+  white-space: nowrap;
+}
+.table tbody tr:last-child td,
+.table tbody tr:last-child th {
+  border-bottom: 0;
+}
+.table tbody th {
+  font-weight: 550;
+}
+.mono {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+.dim {
+  color: var(--muted);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.warnList {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13.5px;
+  color: var(--warn);
+}
+
+.emptyBox {
+  padding: 36px 20px;
+  text-align: center;
+  border: 1px dashed var(--line-strong);
+  border-radius: 6px;
+  color: var(--muted);
+}
+.emptyBox strong {
+  display: block;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 30px;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+
+@media (max-width: 860px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+  .nav {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+    padding: 14px 16px;
+  }
+  .nav ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .nav ul a {
+    padding: 6px 10px;
+  }
+  .navOut {
+    margin-top: 0;
+    margin-left: auto;
+  }
+  .row2,
+  .row3 {
+    grid-template-columns: 1fr;
+  }
+}
