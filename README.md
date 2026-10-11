@@ -1,11 +1,12 @@
 # Section E
 
-**Outside the building. Above the rest.** The private website of PGDM 2026–28, Section E. It gives every student three things:
+**Outside the building. Above the rest.** The private website of PGDM 2026–28, Section E. It gives every student four things:
 
 | | |
 |---|---|
 | **My Seating Plan** | Your seat for every subject. You see only your own seat, on an anonymous room map. |
-| **Live Timetable** | The official timetable, read straight from the college's workbook. Section E's classes are pulled out, and each class shows *your* seat. |
+| **Homework** | What's due and when — due the next class of that subject or on a set date — with a phone reminder the evening before. |
+| **Live Timetable** | The official timetable, synced from the college's workbook even when it is restricted to certain email IDs. Section E's classes are pulled out, and each class shows *your* seat. The admin can switch it off. |
 | **OLT Mock Tests** | Timed MCQ practice tests that the admin creates, schedules and publishes from a dashboard. |
 
 ---
@@ -42,12 +43,23 @@ Without the PIN, anyone could type a classmate's roll number and see their seat 
 - Data problems are reported, not hidden. If a roll number appears twice on a sheet, the admin preview warns about it, and the affected student sees a note asking them to confirm with their CR.
 - If the timetable can be read, the seat page also shows a **"Next class"** strip with your seat for that class.
 
+### Homework
+- **Admin, every evening:** `/admin/homework` lists every subject. Subjects that had class that day come first. Type the homework next to each subject and choose when it's due:
+  - **Next class:** resolved against the live timetable, so if the class is moved, the deadline moves with it. The last known date is kept in case the timetable later becomes unavailable.
+  - **On a date:** any specific date.
+
+  Post one row, or all filled rows at once. Optionally notify everyone immediately.
+- **Students:** `/homework` groups work into *Due tomorrow*, *Due today*, *Coming up*, *Date to be confirmed* and *Past*. Each item can be ticked off. Ticks are private and also stop reminders for that item. The landing page shows what's due tomorrow, and the menu shows a count.
+- **Reminders:** students can turn on notifications on their phone (Web Push). It works on Android, desktop browsers, and on iPhone once Section E is added to the Home Screen; the page explains how. Every evening around 7 pm IST, each student gets one notification listing what's due tomorrow that they haven't ticked off. The admin can also send it on demand, and can copy a ready-made list for the class WhatsApp group.
+- Homework is visible only to registered Section E students.
+
 ### Live timetable
-- **Source:** a share link set in `/admin/timetable` or in `TIMETABLE_URL`. Changing it needs no redeploy. Supported sources:
-  - **Google Drive / Google Sheets** links shared as *Anyone with the link → Viewer*. If `GOOGLE_API_KEY` is set, the Drive API is used and gives the sheet's exact *last edited* time. Otherwise the public download endpoints are used and changes are detected by content hash.
-  - **OneDrive / SharePoint** "anyone" links.
-  - Any direct `.xlsx` link.
-- **Refresh:** the workbook is downloaded at most once every `TIMETABLE_TTL_SECONDS` (default 120). All visitors share one copy cached in Postgres. A *Refresh* button forces a new download (rate-limited).
+- **Sources** (chosen in `/admin/timetable`, no redeploy needed):
+  - **Apps Script relay**, for sheets restricted to specific email IDs. A ~30-line Google Apps Script, generated for you in the admin page, runs in *your* Google account (the one that can open the timetable). Every 10 minutes it checks the sheet's version and sends the workbook only when it changed. It needs no Google Cloud project, no API keys, and no change to the sheet's sharing. If it goes quiet for 2 hours, the site flags the copy as possibly out of date, and Google emails you if the script starts failing.
+  - **Public share link:** Google Drive / Sheets shared as *Anyone with the link → Viewer*, OneDrive / SharePoint "anyone" links, or any direct `.xlsx` link. The server downloads it at most once every `TIMETABLE_TTL_SECONDS` (default 120). A *Refresh* button forces a new download. `GOOGLE_API_KEY` adds exact "last edited" times for Drive files.
+  - **Manual upload:** upload the `.xlsx` whenever it changes.
+- **On/off switch:** if you'd rather not have a timetable, switch it off. The tab, the landing schedule and the next-class hints disappear, and homework uses fixed due dates.
+- All visitors share one parsed copy cached in Postgres.
 - **States:** a loading skeleton, *Live · synced 2 min ago*, *Sheet last edited …*, an error state, and a *stale copy* warning if the source can't be reached but an earlier copy exists.
 - **Change detection:** when the content changes, every Section E session is compared with the previous version. Changes from the last 72 hours are listed ("CF → OM"), and the affected classes are badged.
 - **Layout detection** (`src/lib/timetable/parse.ts`) reads:
@@ -116,6 +128,16 @@ tests/unit                   parsers, matching, grading, bulk import
 tests/e2e                    full flows against synthetic data
 ```
 
+## Setting up reminders (one time)
+
+1. Generate VAPID keys: `npx web-push generate-vapid-keys`.
+2. Set these environment variables:
+   - `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (the public key)
+   - `VAPID_PRIVATE_KEY` (the private key)
+   - `VAPID_SUBJECT=mailto:you@example.com`
+   - `CRON_SECRET` (any long random string)
+3. On Vercel, `vercel.json` already schedules `GET /api/cron/homework-reminders` daily at 13:30 UTC (7 pm IST). Vercel sends `CRON_SECRET` as the bearer token automatically. On another host, have any scheduler call that URL with `Authorization: Bearer <CRON_SECRET>`.
+
 ## Running it locally
 
 ```bash
@@ -144,7 +166,8 @@ npm run e2e                     # end-to-end (synthetic fixtures, fresh DB)
 3. Add these environment variables:
    - `SESSION_SECRET`
    - `ADMIN_PASSWORD_HASH` (from `npm run hash-password`)
-   - optionally `TIMETABLE_URL` and `GOOGLE_API_KEY`
+   - for reminders: the VAPID keys and `CRON_SECRET` (see above)
+   - optionally `TIMETABLE_URL`, `GOOGLE_API_KEY` and `NEXT_PUBLIC_SITE_URL`
 4. Deploy. Tables are created automatically on the first request.
 5. Sign in at `/admin`, upload the seating plan and link the timetable.
 
