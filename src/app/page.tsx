@@ -1,11 +1,12 @@
 import Link from 'next/link';
 import { Suspense } from 'react';
-import { SiteHeader } from '@/components/SiteHeader';
+import { SiteHeader, timetableEnabled } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { Crown, Pavilion } from '@/components/Engravings';
 import { query } from '@/lib/db';
 import { getStudent } from '@/lib/session';
 import { countLiveQuizzes } from '@/lib/quizzes/repo';
+import { openHomeworkCount } from '@/lib/homework/repo';
 import { HeroFeatures, type HeroFeature } from './HeroFeatures';
 import { TodayInE, TodaySkeleton } from './TodayInE';
 import styles from './page.module.css';
@@ -15,18 +16,19 @@ export const dynamic = 'force-dynamic';
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
 async function stats() {
-  const [[row], live] = await Promise.all([
+  const [[row], live, homework] = await Promise.all([
     query<{ students: number; subjects: number }>(
       `SELECT (SELECT count(*)::int FROM students WHERE active) AS students,
               (SELECT count(DISTINCT code)::int FROM seating_plans WHERE active AND kind = 'class') AS subjects`,
     ),
     countLiveQuizzes(),
+    openHomeworkCount(),
   ]);
-  return { students: Number(row?.students ?? 0), subjects: Number(row?.subjects ?? 0), live };
+  return { students: Number(row?.students ?? 0), subjects: Number(row?.subjects ?? 0), live, homework };
 }
 
 export default async function Home() {
-  const [s, student] = await Promise.all([stats(), getStudent()]);
+  const [s, student, timetable] = await Promise.all([stats(), getStudent(), timetableEnabled()]);
   const features: HeroFeature[] = [
     {
       href: '/seat',
@@ -41,13 +43,29 @@ export default async function Home() {
       caption: 'Find your assigned seat for every class.',
     },
     {
-      href: '/timetable',
-      label: <>Live Timetable</>,
-      plain: 'Live Timetable',
-      count: 'live',
-      script: 'Timetable',
-      caption: 'The latest schedule, straight from the official sheet.',
+      href: '/homework',
+      label: (
+        <>
+          Home<em>work</em>
+        </>
+      ),
+      plain: 'Homework',
+      count: pad2(s.homework),
+      script: 'Homework',
+      caption: 'What’s due, and when — with a reminder the night before.',
     },
+    ...(timetable
+      ? [
+          {
+            href: '/timetable',
+            label: <>Live Timetable</>,
+            plain: 'Live Timetable',
+            count: 'live',
+            script: 'Timetable',
+            caption: 'The latest schedule, straight from the official sheet.',
+          },
+        ]
+      : []),
     {
       href: '/tests',
       label: (
@@ -88,7 +106,9 @@ export default async function Home() {
             <div className={`${styles.note} ${styles.noteRight}`}>
               <Crown className={styles.noteArt} />
               <p className="caps">
-                Your seat, your classes and your mock tests — personalised to your roll number and refreshed from the official source.
+                {timetable
+                  ? 'Your seat, your classes, your homework and your mock tests — personalised to your roll number.'
+                  : 'Your seat, your homework and your mock tests — personalised to your roll number.'}
               </p>
             </div>
           </div>
@@ -160,13 +180,16 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className={styles.today} aria-labelledby="today-title">
-        <div className="container">
-          <Suspense fallback={<TodaySkeleton />}>
-            <TodayInE />
-          </Suspense>
-        </div>
-      </section>
+      {/* With the timetable off, this band only carries a student's own homework. */}
+      {(timetable || student) && (
+        <section className={styles.today} aria-labelledby="today-title">
+          <div className="container">
+            <Suspense fallback={<TodaySkeleton timetable={timetable} />}>
+              <TodayInE timetable={timetable} student={student ? { rollNo: student.rollNo, name: student.name } : null} />
+            </Suspense>
+          </div>
+        </section>
+      )}
 
       <section className={styles.ctaBand}>
         <div className={`container ${styles.ctaInner}`}>

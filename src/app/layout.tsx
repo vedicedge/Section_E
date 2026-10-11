@@ -14,8 +14,10 @@ export const metadata: Metadata = {
     default: 'Section E — Outside the building. Above the rest.',
     template: '%s · Section E',
   },
-  description: 'Seating, the live timetable and OLT mock tests for PGDM 2026–28, Section E.',
+  description: 'Seating, homework, the live timetable and OLT mock tests for PGDM 2026–28, Section E.',
   robots: { index: false, follow: false },
+  // Lets iPhone users add Section E to the Home Screen as an app (needed for reminders on iOS).
+  appleWebApp: { capable: true, title: 'Section E', statusBarStyle: 'default' },
 };
 
 export const viewport: Viewport = {

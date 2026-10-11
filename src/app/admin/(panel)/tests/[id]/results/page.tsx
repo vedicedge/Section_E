@@ -5,10 +5,12 @@ import { getQuiz, resultsForQuiz } from '@/lib/quizzes/repo';
 import { formatDateTime } from '@/lib/time';
 import { AllowRetake } from './AllowRetake';
 import styles from '../../../../admin.module.css';
+import { requireAdminPage } from '@/lib/admin-guard';
 
 export const metadata: Metadata = { title: 'Results · Admin' };
 
 export default async function Results({ params }: { params: Promise<{ id: string }> }) {
+  await requireAdminPage();
   const { id } = await params;
   const [quiz, rows] = await Promise.all([getQuiz(id), resultsForQuiz(id)]);
   if (!quiz) notFound();

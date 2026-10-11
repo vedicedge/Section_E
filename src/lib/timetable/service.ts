@@ -43,6 +43,8 @@ interface CacheRecord {
   sourceKey: string;
   hash: string;
   parserVersion: number;
+  /** Section letter the copy was parsed for — a change re-parses it. */
+  section?: string;
   fileName: string | null;
   via: string;
   checkedAt: string; // last time the source confirmed this copy (download, relay heartbeat, upload)
@@ -200,7 +202,8 @@ async function store(sourceKey: string, file: IncomingFile, config: TimetableCon
   const keepRaw = sourceKey === 'relay' || sourceKey === 'upload';
   const sameSource = Boolean(cache && cache.sourceKey === sourceKey);
   let next: CacheRecord;
-  if (cache && sameSource && cache.hash === hash && cache.parserVersion === PARSER_VERSION && cache.data) {
+  const sameParse = cache?.parserVersion === PARSER_VERSION && cache?.section === config.section;
+  if (cache && sameSource && cache.hash === hash && sameParse && cache.data) {
     next = { ...cache, checkedAt: now, sourceModifiedAt: file.modifiedAt ?? cache.sourceModifiedAt, lastError: null, via: file.via };
   } else {
     const grids = await readWorkbook(buffer);
@@ -213,6 +216,7 @@ async function store(sourceKey: string, file: IncomingFile, config: TimetableCon
       sourceKey,
       hash,
       parserVersion: PARSER_VERSION,
+      section: config.section,
       fileName: file.fileName,
       via: file.via,
       checkedAt: now,
@@ -238,9 +242,7 @@ export async function ingestWorkbook(sourceKey: 'relay' | 'upload', file: Incomi
     return toState(next, sourceKey, 'ok');
   } catch (err) {
     const message = err instanceof Error ? err.message : 'The workbook could not be read.';
-    if (cache && cache.sourceKey === sourceKey) {
-      await setSetting(CACHE_KEY, { ...cache, lastError: { code: 'parse', message, at: new Date().toISOString() } });
-    }
+    if (cache) await setSetting(CACHE_KEY, { ...cache, lastError: { code: 'parse', message, at: new Date().toISOString() } });
     throw new SourceError('not_xlsx', message);
   }
 }
@@ -251,7 +253,15 @@ export async function ingestWorkbook(sourceKey: 'relay' | 'upload', file: Incomi
  */
 export async function relayHeartbeat(modifiedAt: string | null): Promise<boolean> {
   const cache = await readCache();
-  if (!cache || cache.sourceKey !== 'relay' || !modifiedAt || cache.sourceModifiedAt !== modifiedAt || cache.parserVersion !== PARSER_VERSION) {
+  const { section } = await getTimetableConfig();
+  if (
+    !cache ||
+    cache.sourceKey !== 'relay' ||
+    !modifiedAt ||
+    cache.sourceModifiedAt !== modifiedAt ||
+    cache.parserVersion !== PARSER_VERSION ||
+    cache.section !== section
+  ) {
     return false;
   }
   await setSetting(CACHE_KEY, { ...cache, checkedAt: new Date().toISOString(), lastError: null });
@@ -299,8 +309,8 @@ export async function getTimetable(opts: { force?: boolean } = {}): Promise<Time
 
   if (config.mode !== 'link') {
     if (!cache || cache.sourceKey !== key || !cache.data) return { status: 'pending', mode: config.mode };
-    if (cache.parserVersion !== PARSER_VERSION && cache.raw) {
-      // Parser upgraded since this copy arrived: re-read the stored workbook.
+    if ((cache.parserVersion !== PARSER_VERSION || cache.section !== config.section) && cache.raw) {
+      // Parser upgraded or section changed since this copy arrived: re-read the stored workbook.
       cache = await store(key, { bytes: Buffer.from(cache.raw, 'base64'), fileName: cache.fileName, modifiedAt: cache.sourceModifiedAt, via: cache.via }, config, cache);
     }
     if (config.mode === 'relay' && Date.now() - Date.parse(cache.checkedAt) > RELAY_QUIET_MS) {
@@ -313,7 +323,7 @@ export async function getTimetable(opts: { force?: boolean } = {}): Promise<Time
   }
 
   const ttl = env.timetableTtlSeconds * 1000;
-  const usable = cache && cache.sourceKey === key && cache.parserVersion === PARSER_VERSION;
+  const usable = cache && cache.sourceKey === key && cache.parserVersion === PARSER_VERSION && cache.section === config.section;
   if (usable && !opts.force && Date.now() - Date.parse(cache!.checkedAt) < ttl) {
     return toState(cache!, 'link', 'ok');
   }
@@ -338,6 +348,7 @@ export async function getTimetableDiagnostics() {
     },
     cache: cache
       ? {
+          kind: (cache.sourceKey === 'relay' || cache.sourceKey === 'upload' ? cache.sourceKey : 'link') as TimetableMode,
           source: describeKey(cache.sourceKey),
           fileName: cache.fileName,
           via: cache.via,

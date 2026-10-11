@@ -5,6 +5,7 @@ import { listQuizzes } from '@/lib/quizzes/repo';
 import { formatDateTime } from '@/lib/time';
 import { QuizRowActions } from './QuizRowActions';
 import styles from '../../admin.module.css';
+import { requireAdminPage } from '@/lib/admin-guard';
 
 export const metadata: Metadata = { title: 'Mock tests · Admin' };
 
@@ -16,6 +17,7 @@ const PHASE: Record<string, { label: string; cls: string }> = {
 };
 
 export default async function AdminTests() {
+  await requireAdminPage();
   const [quizzes, counts] = await Promise.all([
     listQuizzes(),
     query<{ quiz_id: string; n: number }>(`SELECT quiz_id, count(*)::int AS n FROM quiz_attempts WHERE submitted_at IS NOT NULL GROUP BY quiz_id`),

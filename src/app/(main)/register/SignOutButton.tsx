@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { forgetThisDevice } from '@/lib/push-client';
 
 export function SignOutButton({ className = 'btn btn--ghost' }: { className?: string }) {
   const router = useRouter();
@@ -13,6 +14,7 @@ export function SignOutButton({ className = 'btn btn--ghost' }: { className?: st
       disabled={busy}
       onClick={async () => {
         setBusy(true);
+        await forgetThisDevice();
         await fetch('/api/auth/logout', { method: 'POST' });
         router.refresh();
         setBusy(false);

@@ -1,5 +1,6 @@
 .trigger,
 .close {
+  position: relative;
   width: 44px;
   height: 44px;
   margin-left: -10px;
@@ -42,6 +43,28 @@
 .triggerOpen .plus,
 .close .plus {
   transform: rotate(45deg);
+}
+
+/* Homework due tomorrow: a small numbered seal on the "+" (on the red hero it turns bone). */
+.flag {
+  position: absolute;
+  top: 1px;
+  right: -1px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--vermilion);
+  color: var(--ink-on-red);
+  font-family: var(--sans);
+  font-size: 10.5px;
+  font-weight: 650;
+  line-height: 18px;
+  text-align: center;
+  pointer-events: none;
+}
+.flagOnRed {
+  background: var(--bone);
 }
 
 .panel {
@@ -99,10 +122,12 @@
 
 .item {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: flex-start;
-  gap: 14px;
+  gap: 0 14px;
   font-family: var(--serif);
-  font-size: clamp(42px, 8.5vw, 112px);
+  /* vh term keeps all five items on a short laptop screen without scrolling */
+  font-size: clamp(42px, min(8.5vw, 10.5vh), 112px);
   line-height: 1;
   letter-spacing: -0.035em;
   transition: color 0.25s;
@@ -117,6 +142,15 @@
   letter-spacing: 0;
   margin-top: 0.35em;
 }
+.due {
+  font-style: italic;
+  font-weight: 500;
+  font-size: max(14px, 0.2em);
+  letter-spacing: 0;
+  line-height: 1.2;
+  margin-top: 0.45em;
+  white-space: nowrap;
+}
 
 .foot {
   display: flex;
@@ -129,6 +163,11 @@
 .footActions {
   display: flex;
   gap: 22px;
+}
+.footError {
+  flex-basis: 100%;
+  font-size: 13px;
+  font-weight: 550;
 }
 .footLink {
   background: none;

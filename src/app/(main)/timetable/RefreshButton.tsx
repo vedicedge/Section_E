@@ -3,14 +3,18 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { api } from '@/lib/client-api';
+import styles from './timetable.module.css';
 
+/** Asks the server to re-download the sheet now (link mode only — pushed copies have nothing to pull). */
 export function RefreshButton({ label = 'Refresh' }: { label?: string }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const working = busy || pending;
 
   async function refresh() {
+    if (working) return;
     setBusy(true);
     setMessage(null);
     const res = await api<{ status: string; error: { message: string } | null }>('/api/timetable/refresh', {});
@@ -21,19 +25,16 @@ export function RefreshButton({ label = 'Refresh' }: { label?: string }) {
   }
 
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-      <button type="button" className="btn btn--ghost btn--sm" onClick={refresh} disabled={busy || pending} aria-live="polite">
-        <span aria-hidden style={{ display: 'inline-block', animation: busy || pending ? 'spin 1s linear infinite' : undefined }}>
+    <span className={styles.refresh}>
+      <button type="button" className="btn btn--ghost btn--sm" onClick={refresh} aria-disabled={working}>
+        <span aria-hidden="true" className={`${styles.spin} ${working ? styles.spinning : ''}`}>
           ↻
         </span>
-        {busy || pending ? 'Checking…' : label}
+        {working ? 'Checking…' : label}
       </button>
-      {message && (
-        <span role="status" style={{ fontSize: 13, color: 'var(--muted)' }}>
-          {message}
-        </span>
-      )}
-      <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
+      <span className={styles.refreshMessage} role="status">
+        {message}
+      </span>
     </span>
   );
 }

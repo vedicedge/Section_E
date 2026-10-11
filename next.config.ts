@@ -13,7 +13,18 @@ const nextConfig: NextConfig = {
   // Native / WASM packages are loaded from node_modules at runtime instead of being bundled.
   serverExternalPackages: ['@electric-sql/pglite', 'pg', 'exceljs'],
   async headers() {
-    return [{ source: '/:path*', headers: securityHeaders }];
+    return [
+      { source: '/:path*', headers: securityHeaders },
+      {
+        // The reminders service worker must always be fresh and may control the whole site.
+        source: '/sw.js',
+        headers: [
+          { key: 'Content-Type', value: 'application/javascript; charset=utf-8' },
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+          { key: 'Service-Worker-Allowed', value: '/' },
+        ],
+      },
+    ];
   },
 };
 

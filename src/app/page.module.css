@@ -65,16 +65,25 @@
   margin: 0;
   padding: 0;
 }
+/* Wide screens run the index two to a line, slashes between: "My Seating Plan / Homework /". */
 .features li {
-  display: block;
+  display: inline;
   line-height: 1.02;
+}
+.features li:nth-child(2n)::after {
+  content: '\A';
+  white-space: pre;
+}
+.featureLine {
+  white-space: nowrap;
 }
 
 .feature,
 .slash {
   font-family: var(--serif);
   font-weight: 400;
-  font-size: clamp(44px, 7.4vw, 122px);
+  /* two items a line: capped so the longest pair fits the 1440px container; the vh term keeps short laptops in view */
+  font-size: clamp(44px, min(7vw, 11.6vh), 104px);
   letter-spacing: -0.045em;
 }
 .feature {
@@ -112,7 +121,7 @@
 
 .slash {
   display: inline-block;
-  margin-left: 0.1em;
+  margin: 0 0.16em 0 0.1em;
   font-weight: 300;
   transform: scale(0.72) translateY(-0.02em);
   transform-origin: left center;
@@ -149,6 +158,12 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
     font-weight: 500;
+  }
+  .features li {
+    display: block;
+  }
+  .features li::after {
+    content: none;
   }
   .slash {
     display: none;

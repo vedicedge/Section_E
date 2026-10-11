@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
 import { activePlanSummaries } from '@/lib/seating/repo';
 import { QuizEditor } from '../QuizEditor';
+import { requireAdminPage } from '@/lib/admin-guard';
 
 export const metadata: Metadata = { title: 'New mock test · Admin' };
 
 export default async function NewTest() {
+  await requireAdminPage();
   const plans = await activePlanSummaries();
   return (
     <QuizEditor

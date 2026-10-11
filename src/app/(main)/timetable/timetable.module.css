@@ -30,6 +30,36 @@
 .sep {
   color: var(--faint);
 }
+.notice {
+  margin-bottom: 24px;
+}
+
+.refresh {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.refreshMessage {
+  font-size: 13px;
+  color: var(--muted);
+}
+.spin {
+  display: inline-block;
+}
+.spinning {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (pointer: coarse), (max-width: 640px) {
+  .refresh :global(.btn) {
+    min-height: 44px;
+  }
+}
 
 .tabs {
   display: flex;

@@ -4,6 +4,7 @@ import { queryOne } from '@/lib/db';
 import { activePlanSummaries } from '@/lib/seating/repo';
 import { getQuestions, getQuiz } from '@/lib/quizzes/repo';
 import { QuizEditor } from '../QuizEditor';
+import { requireAdminPage } from '@/lib/admin-guard';
 
 export const metadata: Metadata = { title: 'Edit mock test · Admin' };
 
@@ -14,6 +15,7 @@ export default async function EditTest({
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireAdminPage();
   const { id } = await params;
   const { saved } = await searchParams;
   const [quiz, questions, plans, count] = await Promise.all([

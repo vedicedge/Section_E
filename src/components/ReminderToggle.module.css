@@ -1,0 +1,120 @@
+.card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px clamp(16px, 3vw, 32px);
+  padding: clamp(16px, 2.4vw, 24px) clamp(16px, 2.8vw, 28px);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.art {
+  width: 40px;
+  color: var(--accent);
+  align-self: start;
+  margin-top: 2px;
+}
+.body {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+.title {
+  font-family: var(--serif);
+  font-size: clamp(26px, 2.4vw, 32px);
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+}
+.copy {
+  max-width: 58ch;
+  font-size: 14.5px;
+  color: var(--muted);
+}
+.status {
+  max-width: 64ch;
+  font-size: 13.5px;
+}
+.card[data-state='unconfigured'] .status,
+.card[data-state='unsupported'] .status,
+.card[data-state='checking'] .status {
+  color: var(--muted);
+}
+.card[data-state='on'] .status {
+  color: var(--ok);
+  font-weight: 550;
+}
+.error {
+  font-size: 13.5px;
+  font-weight: 550;
+  color: var(--accent);
+}
+
+.steps {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  counter-reset: step;
+  font-size: 14px;
+}
+.steps li {
+  counter-increment: step;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+.steps li::before {
+  content: counter(step, decimal-leading-zero);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15px;
+  color: var(--accent);
+}
+.steps strong {
+  font-weight: 600;
+}
+.share {
+  display: inline-block;
+  width: 13px;
+  height: 16px;
+  vertical-align: -2px;
+  margin-left: 2px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.placeholder {
+  display: inline-block;
+  width: 190px;
+  height: 44px;
+  border-radius: 999px;
+}
+
+@media (max-width: 640px) {
+  .card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .art {
+    width: 30px;
+  }
+  .actions {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+  }
+  .actions > * {
+    flex: 1 1 auto;
+  }
+}

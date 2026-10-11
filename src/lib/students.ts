@@ -3,6 +3,7 @@ import { query, queryOne } from './db';
 import { hashSecret, verifySecret } from './crypto';
 import { HttpError } from './http';
 import { cleanName, isValidRoll, normaliseRoll } from './names';
+import { removeAllSubscriptions } from './push';
 
 interface StudentRow {
   roll_no: string;
@@ -86,6 +87,7 @@ export async function addStudent(rollInput: string, nameInput: string) {
 
 /** Clears the PIN and signs the student out on every device (session_version bump). */
 export async function resetStudent(roll: string) {
+  await removeAllSubscriptions(roll);
   await query(
     `UPDATE students SET pin_hash = NULL, claimed_at = NULL, session_version = session_version + 1, updated_at = now() WHERE roll_no = $1`,
     [roll],
@@ -93,9 +95,12 @@ export async function resetStudent(roll: string) {
 }
 
 export async function setStudentActive(roll: string, active: boolean) {
+  if (!active) await removeAllSubscriptions(roll);
   await query(`UPDATE students SET active = $2, session_version = session_version + 1, updated_at = now() WHERE roll_no = $1`, [roll, active]);
 }
 
 export async function deleteStudent(roll: string) {
+  await removeAllSubscriptions(roll);
+  await query('DELETE FROM homework_done WHERE roll_no = $1', [roll]);
   await query('DELETE FROM students WHERE roll_no = $1', [roll]);
 }

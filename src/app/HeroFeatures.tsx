@@ -13,13 +13,17 @@ export interface HeroFeature {
   caption: string;
 }
 
+const HOW_MANY = ['None', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'];
+
 /**
- * The reference's index of names, reused as the three feature buttons. Hover / focus turns an
- * item bone-white and swaps the giant script watermark behind the centrepiece.
+ * The reference's index of names, reused as the feature buttons: two to a line with slashes on
+ * wide screens, one per line with its caption on phones. Hover / focus turns an item bone-white
+ * and swaps the giant script watermark behind the centrepiece.
  */
 export function HeroFeatures({ features }: { features: HeroFeature[] }) {
   const [active, setActive] = useState<number | null>(null);
   const current = active === null ? null : features[active];
+  const things = HOW_MANY[features.length] ?? String(features.length);
 
   return (
     <>
@@ -27,23 +31,25 @@ export function HeroFeatures({ features }: { features: HeroFeature[] }) {
         <ul>
           {features.map((f, i) => (
             <li key={f.href}>
-              <Link
-                href={f.href}
-                className={`${styles.feature} ${active === i ? styles.featureActive : ''}`}
-                onMouseEnter={() => setActive(i)}
-                onMouseLeave={() => setActive(null)}
-                onFocus={() => setActive(i)}
-                onBlur={() => setActive(null)}
-                aria-describedby={`feature-caption-${i}`}
-              >
-                <span className={styles.featureLabel}>{f.label}</span>
-                <span className="count">({f.count})</span>
-              </Link>
-              {i < features.length - 1 && (
-                <span className={styles.slash} aria-hidden>
-                  /
-                </span>
-              )}
+              <span className={styles.featureLine}>
+                <Link
+                  href={f.href}
+                  className={`${styles.feature} ${active === i ? styles.featureActive : ''}`}
+                  onMouseEnter={() => setActive(i)}
+                  onMouseLeave={() => setActive(null)}
+                  onFocus={() => setActive(i)}
+                  onBlur={() => setActive(null)}
+                  aria-describedby={`feature-caption-${i}`}
+                >
+                  <span className={styles.featureLabel}>{f.label}</span>
+                  <span className="count">({f.count})</span>
+                </Link>
+                {i < features.length - 1 && (
+                  <span className={styles.slash} aria-hidden>
+                    /
+                  </span>
+                )}
+              </span>
               <span id={`feature-caption-${i}`} className={styles.featureCaption}>
                 {f.caption}
               </span>
@@ -51,7 +57,7 @@ export function HeroFeatures({ features }: { features: HeroFeature[] }) {
           ))}
         </ul>
         <p className={styles.caption} aria-hidden>
-          {current ? current.caption : 'Three things, built only for Section E — pick one.'}
+          {current ? current.caption : `${things} things, built only for Section E — pick one.`}
         </p>
       </nav>
       <div className={styles.watermark} aria-hidden>

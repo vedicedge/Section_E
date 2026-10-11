@@ -3,10 +3,12 @@ import { listPlans } from '@/lib/seating/repo';
 import { SeatingUpload } from './SeatingUpload';
 import { PlanTable } from './PlanTable';
 import styles from '../../admin.module.css';
+import { requireAdminPage } from '@/lib/admin-guard';
 
 export const metadata: Metadata = { title: 'Seating plans · Admin' };
 
 export default async function AdminSeating() {
+  await requireAdminPage();
   const plans = await listPlans();
   return (
     <div className={styles.stack}>

@@ -2,10 +2,12 @@ import type { Metadata } from 'next';
 import { listRoster } from '@/lib/students';
 import { Roster } from './Roster';
 import styles from '../../admin.module.css';
+import { requireAdminPage } from '@/lib/admin-guard';
 
 export const metadata: Metadata = { title: 'Students · Admin' };
 
 export default async function AdminStudents() {
+  await requireAdminPage();
   const roster = await listRoster();
   const registered = roster.filter((r) => r.registered).length;
   return (

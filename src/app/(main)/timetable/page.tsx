@@ -1,17 +1,24 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
-import { getTimetable } from '@/lib/timetable/service';
+import Link from 'next/link';
+import { getTimetable, type TimetableMode } from '@/lib/timetable/service';
 import { matchSubject } from '@/lib/timetable/match';
 import { activePlanSummaries, planStatus, seatsForStudent } from '@/lib/seating/repo';
 import { getStudent } from '@/lib/session';
 import { formatDateTime, relativeTime, todayISO } from '@/lib/time';
-import { Hourglass } from '@/components/Engravings';
+import { Hourglass, Pavilion } from '@/components/Engravings';
 import { RefreshButton } from './RefreshButton';
 import { TimetableView, type TimetableSession } from './TimetableView';
 import styles from './timetable.module.css';
 
 export const metadata: Metadata = { title: 'Live Timetable' };
 export const dynamic = 'force-dynamic';
+
+const PENDING: Record<TimetableMode, string> = {
+  relay: 'Waiting for the first update from the Google relay.',
+  upload: 'Waiting for the admin to upload the timetable.',
+  link: 'The timetable source is set up but hasn’t sent a copy yet.',
+};
 
 export default function TimetablePage() {
   return (
@@ -34,7 +41,7 @@ function TimetableSkeleton() {
     <div aria-busy="true" aria-label="Loading the timetable">
       <p className={styles.status}>
         <span className="pill pill--muted">
-          <span className="dot dot--pulse" /> Fetching the latest copy…
+          <span className="dot dot--pulse" aria-hidden="true" /> Fetching the latest copy…
         </span>
       </p>
       <div className={styles.skeletonDays}>
@@ -69,26 +76,29 @@ async function TimetableBody() {
     );
   }
 
-  if (state.status === 'disabled' || state.status === 'pending') {
+  if (state.status === 'disabled') {
+    return (
+      <div className={styles.empty}>
+        <Pavilion className={styles.emptyArt} />
+        <h2 className={styles.emptyTitle}>
+          The timetable is <em>switched off.</em>
+        </h2>
+        <p className="muted">The admin has turned it off for now — check back later.</p>
+        <Link href="/" className="btn btn--ghost">
+          Back to home
+        </Link>
+      </div>
+    );
+  }
+
+  if (state.status === 'pending') {
     return (
       <div className={styles.empty}>
         <Hourglass className={styles.emptyArt} />
         <h2 className={styles.emptyTitle}>
-          {state.status === 'disabled' ? (
-            <>
-              Timetable is <em>off.</em>
-            </>
-          ) : (
-            <>
-              Waiting for the <em>first copy.</em>
-            </>
-          )}
+          Waiting for the <em>first copy.</em>
         </h2>
-        <p className="muted">
-          {state.status === 'disabled'
-            ? 'The admin has switched the timetable off for now.'
-            : 'The timetable source is set up but hasn’t sent a copy yet. It will appear here automatically.'}
-        </p>
+        <p className="muted">{PENDING[state.mode]} It appears here automatically as soon as it arrives.</p>
       </div>
     );
   }
@@ -101,7 +111,7 @@ async function TimetableBody() {
           Can’t reach the <em>timetable.</em>
         </h2>
         <p className="muted">{state.error.message}</p>
-        <RefreshButton label="Try again" />
+        {state.mode === 'link' && <RefreshButton label="Try again" />}
       </div>
     );
   }
@@ -142,35 +152,73 @@ async function TimetableBody() {
     };
   });
 
-  const updated = state.sourceModifiedAt ?? state.contentChangedAt;
+  const { mode, checkedAt, sourceModifiedAt, contentChangedAt, error } = state;
+  const quiet = state.status === 'stale' && error?.code === 'relay_quiet';
   return (
     <>
       <div className={styles.statusBar}>
         <p className={styles.status}>
-          {state.status === 'ok' ? (
+          {state.status === 'stale' ? (
+            <span className="pill pill--warn">Showing last saved copy</span>
+          ) : mode === 'upload' ? (
+            <span className="pill pill--muted">Admin upload</span>
+          ) : (
             <span className="pill pill--live">
-              <span className="dot dot--pulse" /> Live
+              <span className="dot dot--pulse" aria-hidden="true" /> Live
+            </span>
+          )}
+          {mode === 'upload' ? (
+            <span>
+              Uploaded <time dateTime={checkedAt}>{formatDateTime(checkedAt)}</time>
             </span>
           ) : (
-            <span className="pill pill--warn">Showing last saved copy</span>
+            <span>
+              {mode === 'relay' ? 'Synced via Google relay' : 'Synced'}{' '}
+              <time dateTime={checkedAt} title={formatDateTime(checkedAt)}>
+                {relativeTime(checkedAt)}
+              </time>
+            </span>
           )}
-          <span>
-            Synced <time dateTime={state.checkedAt}>{relativeTime(state.checkedAt)}</time>
-          </span>
-          <span className={styles.sep}>·</span>
-          <span>
-            {state.sourceModifiedAt ? 'Sheet last edited' : 'Last change detected'}{' '}
-            <time dateTime={updated} title={formatDateTime(updated)}>
-              {formatDateTime(updated)}
-            </time>
-          </span>
+          {sourceModifiedAt ? (
+            <>
+              <span className={styles.sep} aria-hidden="true">
+                ·
+              </span>
+              <span>
+                Sheet last edited <time dateTime={sourceModifiedAt}>{formatDateTime(sourceModifiedAt)}</time>
+              </span>
+            </>
+          ) : (
+            mode !== 'upload' && (
+              <>
+                <span className={styles.sep} aria-hidden="true">
+                  ·
+                </span>
+                <span>
+                  Last change detected <time dateTime={contentChangedAt}>{formatDateTime(contentChangedAt)}</time>
+                </span>
+              </>
+            )
+          )}
         </p>
-        <RefreshButton />
+        {mode === 'link' && <RefreshButton />}
       </div>
-      {state.status === 'stale' && state.error && (
-        <p className="notice notice--warn" role="status" style={{ marginBottom: 24 }}>
-          We couldn’t reach the official sheet just now ({state.error.message}). This is the last copy we saved — it may be out of date.
+      {quiet ? (
+        <p className={`notice notice--warn ${styles.notice}`} role="status">
+          The timetable normally updates itself every 10 minutes, but the Google relay last checked in {relativeTime(checkedAt)}. This copy may be out of
+          date — confirm anything important with your class representative.
         </p>
+      ) : state.status === 'stale' && error ? (
+        <p className={`notice notice--warn ${styles.notice}`} role="status">
+          We couldn’t reach the official sheet just now ({error.message}). This is the last copy we saved — it may be out of date.
+        </p>
+      ) : (
+        error &&
+        mode !== 'link' && (
+          <p className={`notice notice--warn ${styles.notice}`} role="status">
+            The newest version of the sheet couldn’t be read, so this is the last copy that could.
+          </p>
+        )
       )}
       <TimetableView
         sessions={sessions}

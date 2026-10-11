@@ -1,0 +1,472 @@
+.head {
+  margin-bottom: clamp(24px, 3.4vw, 40px);
+}
+.head :global(.page-title) {
+  margin-top: 14px;
+}
+.head :global(.page-title) em {
+  color: var(--accent);
+}
+
+.reminder {
+  margin-bottom: clamp(32px, 5vw, 56px);
+}
+
+.sections {
+  display: grid;
+  gap: clamp(40px, 6vw, 72px);
+}
+
+/* ------------------------------------------------ due tomorrow (headline) */
+
+/* The panel re-points the colour tokens, so every child — ticks, links, focus rings — reads on red. */
+.tomorrow {
+  --ink: var(--ink-on-red);
+  --muted: var(--ink-on-red);
+  --accent: var(--ink-on-red);
+  --line: color-mix(in srgb, var(--ink-on-red) 24%, transparent);
+  --line-strong: color-mix(in srgb, var(--ink-on-red) 55%, transparent);
+  --focus: var(--ink-on-red);
+  background: var(--vermilion);
+  color: var(--ink-on-red);
+  border-radius: 4px;
+  padding: clamp(20px, 3vw, 36px) clamp(16px, 3vw, 36px) clamp(6px, 1.2vw, 14px);
+}
+.tomorrow ::selection {
+  background: var(--ink-on-red);
+  color: var(--vermilion);
+}
+.tomorrowHead {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line-strong);
+}
+.tomorrowLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 600;
+}
+.tomorrowTitle {
+  font-family: var(--serif);
+  font-size: clamp(44px, 6.4vw, 92px);
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+}
+.tomorrowTitle em {
+  font-style: italic;
+}
+.tomorrowNote {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 20px;
+}
+
+/* Nothing due tomorrow: same slot, quieter. */
+.quiet {
+  display: grid;
+  gap: 8px;
+  padding: clamp(20px, 3vw, 32px) clamp(16px, 3vw, 32px);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--vermilion);
+  border-radius: 4px;
+}
+.quiet .tomorrowLabel {
+  color: var(--muted);
+}
+.quietTitle {
+  font-family: var(--serif);
+  font-size: clamp(34px, 4.4vw, 60px);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.quietTitle em {
+  font-style: italic;
+  color: var(--accent);
+}
+.quietText {
+  color: var(--muted);
+  font-size: 15px;
+}
+
+/* ------------------------------------------------------------- sections */
+
+.groupTitle {
+  font-family: var(--serif);
+  font-size: clamp(30px, 3vw, 44px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line-strong);
+}
+.groupTitle em {
+  font-style: italic;
+  color: var(--accent);
+}
+.groupNote {
+  margin-top: 12px;
+  max-width: 60ch;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.dateGroup + .dateGroup {
+  border-top: 1px solid var(--line);
+}
+.dateHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  padding-top: 22px;
+  font-family: var(--sans);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  color: var(--accent);
+}
+.dateRel {
+  color: var(--muted);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+/* ---------------------------------------------------------------- items */
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.item {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-areas:
+    'tick main'
+    '. side';
+  column-gap: clamp(12px, 2vw, 22px);
+  row-gap: 10px;
+  padding: 18px 0;
+}
+.item + .item {
+  border-top: 1px solid var(--line);
+}
+.main {
+  grid-area: main;
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+.side {
+  grid-area: side;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  align-content: start;
+}
+
+.subject {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  font-size: 11px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 650;
+}
+.code {
+  color: var(--accent);
+}
+.subjectTitle {
+  color: var(--muted);
+  font-weight: 550;
+  letter-spacing: 0.08em;
+}
+.title {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: clamp(24px, 2.4vw, 30px);
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+}
+.details {
+  max-width: 68ch;
+  font-size: 14.5px;
+  line-height: 1.6;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.link {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--line-strong);
+  transition: text-decoration-color 0.2s;
+  word-break: break-all;
+}
+.link:hover {
+  text-decoration-color: currentColor;
+}
+.error {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.due {
+  font-size: 13px;
+  font-weight: 600;
+}
+.urgent .due {
+  color: var(--accent);
+}
+.hint {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15px;
+  line-height: 1.3;
+  color: var(--muted);
+}
+.given {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.item[data-done] .title {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+.item[data-done] .details,
+.item[data-done] .due {
+  color: var(--muted);
+}
+/* On red, only the large title dims — smaller text keeps its contrast. */
+.tomorrow .item[data-done] .title {
+  opacity: 0.7;
+}
+
+@media (min-width: 760px) {
+  .item {
+    grid-template-columns: 44px minmax(0, 1fr) minmax(180px, 260px);
+    grid-template-areas: 'tick main side';
+    padding: 22px 0;
+  }
+  .side {
+    text-align: right;
+    padding-top: 2px;
+  }
+}
+
+/* ------------------------------------------------------- the round tick */
+
+.tick {
+  grid-area: tick;
+  align-self: start;
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 4px;
+  width: 44px;
+  min-height: 48px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.tickInput {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.tickMark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid var(--muted);
+  color: transparent;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    color 0.2s,
+    transform 0.25s var(--ease);
+}
+.tickMark svg {
+  width: 18px;
+  height: 18px;
+}
+.tickMark path {
+  stroke-dasharray: 20;
+  stroke-dashoffset: 20;
+  transition: stroke-dashoffset 0.32s var(--ease);
+}
+@media (hover: hover) {
+  .tick:hover .tickMark {
+    border-color: var(--ink);
+    color: var(--faint);
+  }
+  .tick:hover .tickMark path {
+    stroke-dashoffset: 0;
+  }
+  .tomorrow .tick:hover .tickMark {
+    color: color-mix(in srgb, var(--ink-on-red) 45%, transparent);
+  }
+}
+.tickInput:checked + .tickMark {
+  background: var(--vermilion);
+  border-color: var(--vermilion);
+  color: var(--bone);
+}
+.tickInput:checked + .tickMark path {
+  stroke-dashoffset: 0;
+}
+.tickInput:active + .tickMark {
+  transform: scale(0.92);
+}
+.tickInput:focus-visible + .tickMark {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+.tickWord {
+  font-size: 9.5px;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 600;
+  color: var(--muted);
+}
+.item[aria-busy='true'] .tickMark {
+  animation: saving 1s ease-in-out infinite;
+}
+@keyframes saving {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.tomorrow .tickInput:checked + .tickMark {
+  background: var(--ink-on-red);
+  border-color: var(--ink-on-red);
+  color: var(--vermilion);
+}
+
+/* ------------------------------------------------------------------ past */
+
+.past {
+  margin-top: clamp(40px, 6vw, 72px);
+}
+.past > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  min-height: 44px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line-strong);
+  list-style: none;
+  cursor: pointer;
+}
+.past > summary::-webkit-details-marker {
+  display: none;
+}
+.pastTitle {
+  font-family: var(--serif);
+  font-size: clamp(30px, 3vw, 44px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+.pastMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  color: var(--muted);
+}
+.chev {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  color: var(--ink);
+  transition: transform 0.3s var(--ease);
+}
+.chev svg {
+  width: 12px;
+  height: 12px;
+}
+.past > summary:hover .chev {
+  border-color: var(--ink);
+}
+.past[open] .chev {
+  transform: rotate(45deg);
+}
+
+/* ----------------------------------------------- empty state and teaser */
+
+.empty {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: clamp(24px, 5vw, 64px);
+  align-items: center;
+  padding: clamp(32px, 5vw, 64px) 0;
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line);
+}
+.emptyArt {
+  width: clamp(90px, 12vw, 150px);
+  color: var(--ink);
+}
+.emptyTitle {
+  font-family: var(--serif);
+  font-size: clamp(38px, 5vw, 76px);
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+  max-width: 16ch;
+}
+.emptyTitle em {
+  font-style: italic;
+  color: var(--accent);
+}
+.emptyText {
+  margin-top: 16px;
+  max-width: 52ch;
+  color: var(--muted);
+  font-size: 16px;
+}
+.emptyText + .emptyText {
+  margin-top: 8px;
+}
+.teaserActions {
+  margin-top: 28px;
+}
+
+@media (max-width: 640px) {
+  .empty {
+    grid-template-columns: 1fr;
+  }
+  .emptyArt {
+    width: 84px;
+  }
+}

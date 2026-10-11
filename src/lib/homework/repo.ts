@@ -110,11 +110,11 @@ export async function resolveAll(records: HomeworkRecord[], ctx: DueContext | nu
 
 /* ------------------------------------------------------------- queries */
 
-/** Homework that can still matter: given in the last `days` days, or due from `days` ago onwards. */
+/** Homework that can still matter: given in the last `days` days, or due from `days` ago onwards (undated items age out by their given date). */
 export async function recentHomework(days = 45): Promise<HomeworkRecord[]> {
   const since = addDays(todayISO(), -days);
   const rows = await query<HomeworkRow>(
-    `SELECT * FROM homework WHERE given_on >= $1 OR due_date >= $1 OR due_date IS NULL ORDER BY given_on DESC, created_at DESC LIMIT 500`,
+    `SELECT * FROM homework WHERE given_on >= $1 OR due_date >= $1 ORDER BY given_on DESC, created_at DESC LIMIT 500`,
     [since],
   );
   return rows.map(toRecord);
@@ -251,6 +251,9 @@ export async function pendingDueCount(rollNo: string, date: string): Promise<num
 
 /** Homework still open for the section: due today or later, or with the date still to be confirmed. */
 export async function openHomeworkCount(today = todayISO()): Promise<number> {
-  const row = await queryOne<{ n: number }>(`SELECT count(*)::int AS n FROM homework WHERE due_date >= $1 OR due_date IS NULL`, [today]);
+  const row = await queryOne<{ n: number }>(
+    `SELECT count(*)::int AS n FROM homework WHERE due_date >= $1 OR (due_date IS NULL AND given_on >= $2)`,
+    [today, addDays(today, -45)],
+  );
   return Number(row?.n ?? 0);
 }

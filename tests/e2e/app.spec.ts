@@ -31,13 +31,14 @@ async function register(page: Page, roll: string, pin: string) {
 }
 
 test.describe.serial('Section E', () => {
-  test('landing page shows the three features', async ({ page }) => {
+  test('landing page shows the features', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Outside the building');
     const nav = page.getByRole('navigation', { name: 'Features' });
     await expect(nav.getByRole('link', { name: /Seating/ })).toHaveAttribute('href', '/seat');
     await expect(nav.getByRole('link', { name: /Live Timetable/ })).toHaveAttribute('href', '/timetable');
     await expect(nav.getByRole('link', { name: /Mock/ })).toHaveAttribute('href', '/tests');
+    await expect(nav.getByRole('link', { name: /Homework/ })).toHaveAttribute('href', '/homework');
   });
 
   test('empty states before any data exists', async ({ page }) => {
@@ -146,7 +147,7 @@ test.describe.serial('Section E', () => {
   test('timetable syncs from the linked workbook', async ({ page }) => {
     await adminLogin(page);
     await page.goto('/admin/timetable');
-    await page.getByLabel('Share link').fill('http://localhost:3299/timetable.xlsx');
+    await page.getByRole('textbox', { name: 'Share link' }).fill('http://localhost:3299/timetable.xlsx');
     await page.getByRole('button', { name: 'Save & test' }).click();
     await expect(page.getByText('Saved — the timetable downloaded successfully.')).toBeVisible();
     await expect(page.getByText('Recognised')).toBeVisible();
@@ -169,7 +170,7 @@ test.describe.serial('Section E', () => {
     await expect(page.getByRole('heading', { name: 'Post homework' })).toBeVisible();
 
     // SM meets again tomorrow in the fixture timetable, so "Next class" resolves to tomorrow.
-    await page.getByLabel('Homework for SM').fill('Read case 4 and answer Q1–3');
+    await page.getByRole('textbox', { name: 'Homework for SM', exact: true }).fill('Read case 4 and answer Q1–3');
     await expect(page.getByRole('radio', { name: /Next class/ }).first()).toBeEnabled();
     await page.getByRole('button', { name: 'Post homework for SM' }).click();
     await expect(page.getByText(/Posted 1/)).toBeVisible();
@@ -180,7 +181,7 @@ test.describe.serial('Section E', () => {
       d.setDate(d.getDate() + 3);
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     });
-    await page.getByLabel('Homework for CF').fill('Solve the WACC problem set');
+    await page.getByRole('textbox', { name: 'Homework for CF', exact: true }).fill('Solve the WACC problem set');
     await page.getByLabel('Due date for CF').fill(due);
     await page.getByRole('button', { name: 'Post homework for CF' }).click();
     await expect(page.getByText(/Posted 1/)).toBeVisible();
@@ -198,9 +199,11 @@ test.describe.serial('Section E', () => {
     await expect(tomorrow).toContainText('Read case 4 and answer Q1–3');
     await expect(page.getByRole('region', { name: /Coming up/ })).toContainText('Solve the WACC problem set');
     const tick = tomorrow.getByRole('checkbox').first();
+    // Wait for the server to confirm the tick (the route may compile on first use in dev).
+    const saved = page.waitForResponse((r) => r.url().includes('/api/homework/') && r.url().endsWith('/done') && r.request().method() === 'POST');
     await tick.check();
     await expect(tick).toBeChecked();
-    await page.waitForTimeout(1500);
+    expect((await saved).ok()).toBe(true);
     await page.reload();
     await expect(page.getByRole('region', { name: /Due tomorrow/ }).getByRole('checkbox').first()).toBeChecked();
 
