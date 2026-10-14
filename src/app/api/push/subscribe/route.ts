@@ -1,18 +1,7 @@
 import { z } from 'zod';
 import { HttpError, ok, readJson, requireStudent, route } from '@/lib/http';
 import { enforce } from '@/lib/rate-limit';
-import { saveSubscription } from '@/lib/push';
-
-/**
- * The server POSTs to whatever endpoint is stored here, so only the browsers' own push services
- * are accepted (Chrome/Android, Firefox, Safari, Edge) — never an arbitrary or internal URL.
- */
-const PUSH_HOSTS = ['fcm.googleapis.com', 'android.googleapis.com', 'push.services.mozilla.com', 'push.apple.com', 'notify.windows.com'];
-
-function isPushService(endpoint: string): boolean {
-  const host = new URL(endpoint).hostname.toLowerCase();
-  return PUSH_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
-}
+import { isPushService, saveSubscription } from '@/lib/push';
 
 const body = z.object({
   subscription: z.object({

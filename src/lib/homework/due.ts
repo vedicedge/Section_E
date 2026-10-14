@@ -72,11 +72,42 @@ export function nextClassOf(subjectCode: string, afterDate: string, ctx: DueCont
   return null;
 }
 
-export function resolveDue(spec: DueSpec, ctx: DueContext | null): ResolvedDue {
+/** First and last day a dated timetable shows, or null for a weekly (weekday-only) timetable. */
+function datedRange(ctx: DueContext): { from: string; to: string } | null {
+  let from: string | null = null;
+  let to: string | null = null;
+  for (const s of ctx.sessions) {
+    if (!s.date) continue;
+    if (from === null || s.date < from) from = s.date;
+    if (to === null || s.date > to) to = s.date;
+  }
+  return from && to ? { from, to } : null;
+}
+
+/**
+ * Whether the timetable speaks for `date`: a dated sheet only for the days it shows, a weekly
+ * timetable for every day (its pattern repeats).
+ */
+export function timetableCovers(ctx: DueContext, date: string): boolean {
+  const range = datedRange(ctx);
+  return !range || (date >= range.from && date <= range.to);
+}
+
+/**
+ * Resolves a deadline. `today` freezes next-class deadlines that have already passed once the
+ * timetable no longer shows that day — otherwise a sheet that moves on to next week would push
+ * last week's homework forward to the subject's next class.
+ */
+export function resolveDue(spec: DueSpec, ctx: DueContext | null, today?: string): ResolvedDue {
   if (spec.dueMode === 'date') return { date: spec.dueDate, time: spec.dueTime, source: 'fixed' };
+  const snapshot: ResolvedDue | null = spec.dueDate ? { date: spec.dueDate, time: spec.dueTime, source: 'snapshot' } : null;
+  const shownByDatedSheet = (date: string) => Boolean(ctx && datedRange(ctx) && timetableCovers(ctx, date));
+  if (snapshot && today && spec.dueDate! < today && !shownByDatedSheet(spec.dueDate!)) return snapshot;
   const next = ctx ? nextClassOf(spec.subjectCode, spec.givenOn, ctx) : null;
   if (next) return { date: next.date, time: next.time, source: 'timetable' };
-  if (spec.dueDate) return { date: spec.dueDate, time: spec.dueTime, source: 'snapshot' };
+  // Keep the last known date only while the timetable can't contradict it; if the timetable
+  // covers that day and no class of the subject happens, the class was cancelled or moved away.
+  if (snapshot && (!ctx || !timetableCovers(ctx, spec.dueDate!))) return snapshot;
   return { date: null, time: null, source: 'unknown' };
 }
 

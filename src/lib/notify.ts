@@ -8,8 +8,13 @@ import { newHomeworkPayload, reminderPayload } from './homework/messages';
 
 /** Homework notifications: the evening-before reminder and the "new homework" ping. */
 
-async function alreadySent(key: string): Promise<boolean> {
-  return Boolean(await queryOne('SELECT 1 FROM notification_log WHERE key = $1', [key]));
+/** Claims a notification key; false when another run already has it (two cron calls can overlap). */
+async function claim(key: string): Promise<boolean> {
+  return Boolean(await queryOne(`INSERT INTO notification_log (key, recipients, detail) VALUES ($1, 0, 'sending') ON CONFLICT (key) DO NOTHING RETURNING key`, [key]));
+}
+
+async function release(key: string) {
+  await query('DELETE FROM notification_log WHERE key = $1', [key]);
 }
 
 async function record(key: string, recipients: number, detail: string) {
@@ -37,35 +42,51 @@ export async function sendDueReminders(opts: { date?: string; force?: boolean } 
   const base: ReminderResult = { date, homework: 0, students: 0, push: null, skipped: null };
   if (!pushConfigured()) return { ...base, skipped: 'not_configured' };
   const key = `due-reminder:${date}`;
-  if (!opts.force && (await alreadySent(key))) return { ...base, skipped: 'already_sent' };
+  if (!opts.force && !(await claim(key))) return { ...base, skipped: 'already_sent' };
+  // Unclaimed when nothing went out, so homework added later that evening can still be reminded.
+  const unclaim = () => (opts.force ? Promise.resolve() : release(key));
 
-  const due = await homeworkDueOn(date);
-  if (!due.length) return { ...base, skipped: 'nothing_due' };
-  const rolls = await subscribedRolls();
-  if (!rolls.length) return { ...base, homework: due.length, skipped: 'no_subscribers' };
-
-  const total: SendResult = { sent: 0, failed: 0, removed: 0 };
   let students = 0;
-  for (const roll of rolls) {
-    const done = await doneIds(roll);
-    const pending = due.filter((h) => !done.has(h.id));
-    if (!pending.length) continue;
-    const res = await sendPush([roll], reminderPayload(pending, date));
-    students++;
-    total.sent += res.sent;
-    total.failed += res.failed;
-    total.removed += res.removed;
+  try {
+    const due = await homeworkDueOn(date);
+    if (!due.length) {
+      await unclaim();
+      return { ...base, skipped: 'nothing_due' };
+    }
+    const rolls = await subscribedRolls();
+    if (!rolls.length) {
+      await unclaim();
+      return { ...base, homework: due.length, skipped: 'no_subscribers' };
+    }
+
+    const total: SendResult = { sent: 0, failed: 0, removed: 0 };
+    for (const roll of rolls) {
+      const done = await doneIds(roll);
+      const pending = due.filter((h) => !done.has(h.id));
+      if (!pending.length) continue;
+      const res = await sendPush([roll], reminderPayload(pending, date));
+      students++;
+      total.sent += res.sent;
+      total.failed += res.failed;
+      total.removed += res.removed;
+    }
+    await record(key, students, `${due.length} homework item(s)`);
+    return { ...base, homework: due.length, students, push: total };
+  } catch (err) {
+    if (students === 0) await unclaim().catch(() => {});
+    throw err;
   }
-  await record(key, students, `${due.length} homework item(s)`);
-  return { ...base, homework: due.length, students, push: total };
 }
 
 /** Pings everyone about freshly posted homework. De-duplicated per set of items. */
 export async function notifyNewHomework(items: HomeworkView[]): Promise<SendResult | null> {
   if (!items.length || !pushConfigured()) return null;
   const key = `new-homework:${sha256(items.map((i) => i.id).sort().join(','))}`;
-  if (await alreadySent(key)) return null;
-  const res = await sendPush('all', newHomeworkPayload(items, todayISO()));
+  if (!(await claim(key))) return null;
+  const res = await sendPush('all', newHomeworkPayload(items, todayISO())).catch(async (err) => {
+    await release(key).catch(() => {});
+    throw err;
+  });
   await record(key, res.sent, `${items.length} item(s)`);
   return res;
 }

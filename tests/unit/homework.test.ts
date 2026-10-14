@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bucketOf, compareDue, isClassHappening, nextClassOf, resolveDue, type DueContext } from '@/lib/homework/due';
+import { bucketOf, compareDue, isClassHappening, nextClassOf, resolveDue, timetableCovers, type DueContext } from '@/lib/homework/due';
 import { dueSentence, newHomeworkPayload, reminderPayload, whatsappText } from '@/lib/homework/messages';
 import type { Session } from '@/lib/timetable/parse';
 
@@ -74,6 +74,39 @@ describe('resolveDue', () => {
   it('matches subject codes loosely ("MM-II" = "MM II")', () => {
     const c: DueContext = { subjectOf: () => 'MM-II', sessions: [s({ date: '2026-10-15', text: 'MM-II' })] };
     expect(nextClassOf('MM II', '2026-10-12', c)?.date).toBe('2026-10-15');
+  });
+  it('keeps a passed deadline once the sheet has moved on to the next week', () => {
+    const nextWeek: DueContext = {
+      subjectOf,
+      sessions: [s({ date: '2026-10-19', day: 'Mon', text: 'SM' }), s({ date: '2026-10-21', day: 'Wed', start: '10:30', text: 'SM' })],
+    };
+    const spec = { dueMode: 'next_class' as const, givenOn: '2026-10-12', dueDate: '2026-10-14', dueTime: '10:30', subjectCode: 'SM' };
+    expect(resolveDue(spec, nextWeek, '2026-10-18')).toEqual({ date: '2026-10-14', time: '10:30', source: 'snapshot' });
+    // Without "today" (or before the deadline) the timetable still decides.
+    expect(resolveDue(spec, nextWeek, '2026-10-13').source).toBe('timetable');
+  });
+  it('re-reads a passed deadline the sheet still shows, so a retroactive change is reflected', () => {
+    const spec = { dueMode: 'next_class' as const, givenOn: '2026-10-12', dueDate: '2026-10-13', dueTime: '09:00', subjectCode: 'SM' };
+    const week: DueContext = { subjectOf, sessions: [s({ date: '2026-10-12', day: 'Mon', text: 'CF' }), ...ctx.sessions] };
+    expect(resolveDue(spec, week, '2026-10-20')).toEqual({ date: '2026-10-14', time: '10:30', source: 'timetable' });
+    const weekly: DueContext = { subjectOf, sessions: [s({ day: 'Thu', start: '10:30', text: 'SM' })] };
+    // A weekly timetable that changed later doesn't move a deadline that has already passed.
+    expect(resolveDue(spec, weekly, '2026-10-20')).toEqual({ date: '2026-10-13', time: '09:00', source: 'snapshot' });
+  });
+  it('drops the snapshot when the sheet shows that class was cancelled', () => {
+    const cancelled: DueContext = {
+      subjectOf,
+      sessions: [s({ date: '2026-10-14', day: 'Wed', text: 'SM' }), s({ date: '2026-10-15', day: 'Thu', text: 'CF', status: 'cancelled' })],
+    };
+    const spec = { dueMode: 'next_class' as const, givenOn: '2026-10-14', dueDate: '2026-10-15', dueTime: '09:00', subjectCode: 'CF' };
+    expect(resolveDue(spec, cancelled, '2026-10-14')).toEqual({ date: null, time: null, source: 'unknown' });
+    // A snapshot outside the days the sheet shows is kept.
+    expect(resolveDue({ ...spec, dueDate: '2026-10-22' }, cancelled, '2026-10-14')).toEqual({ date: '2026-10-22', time: '09:00', source: 'snapshot' });
+  });
+  it('knows which days a timetable covers', () => {
+    expect(timetableCovers(ctx, '2026-10-14')).toBe(true);
+    expect(timetableCovers(ctx, '2026-10-15')).toBe(false);
+    expect(timetableCovers({ subjectOf, sessions: [s({ day: 'Mon', text: 'SM' })] }, '2030-01-01')).toBe(true);
   });
 });
 

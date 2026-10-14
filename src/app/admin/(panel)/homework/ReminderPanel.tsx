@@ -82,6 +82,7 @@ export function ReminderPanel({ configured, cronReady, stats, last, share }: Pro
       </div>
       <p className={css.explain}>
         Every evening around 7 pm IST, students with reminders on get a notification listing the homework due tomorrow that they haven’t ticked off.
+        Sending it early by hand counts as that evening’s reminder, so nobody gets it twice.
       </p>
 
       <div className={`${styles.row2} ${css.reminderGrid}`}>

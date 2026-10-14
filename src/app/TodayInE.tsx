@@ -3,6 +3,7 @@ import { SessionList, type SessionView } from '@/components/SessionList';
 import { homeworkForStudent } from '@/lib/homework/repo';
 import { upcomingSchedule, nextSession } from '@/lib/schedule';
 import { seatsForStudent } from '@/lib/seating/repo';
+import { getTimetableConfig, membersOnly } from '@/lib/timetable/service';
 import { addDays, formatClock, formatDay, minutesNow, todayISO, toMinutes } from '@/lib/time';
 import styles from './TodayInE.module.css';
 
@@ -132,6 +133,29 @@ function HomeworkOnly({ items }: { items: DueItem[] | null }) {
   );
 }
 
+/** Anonymous visitor while the timetable comes from the restricted sheet (relay or upload). */
+function MembersOnly() {
+  return (
+    <>
+      <div className={styles.head}>
+        <div>
+          <p className="eyebrow">From the official timetable</p>
+          <h2 id="today-title" className={styles.title}>
+            Today <em>in</em> E
+          </h2>
+        </div>
+      </div>
+      <p className={styles.empty}>
+        The timetable is shared with Section E only.{' '}
+        <Link href="/register?next=/" className="link">
+          Register
+        </Link>{' '}
+        with your roll number to see today’s classes, your seat for each, and what’s due tomorrow.
+      </p>
+    </>
+  );
+}
+
 /**
  * The landing page's "Today in E" band: the live schedule (when the timetable is on) and, for a
  * registered student only, their own homework due tomorrow. Renders nothing for an anonymous
@@ -142,6 +166,7 @@ export async function TodayInE({ timetable, student }: Props) {
     if (!student) return null;
     return <HomeworkOnly items={await dueTomorrow(student.rollNo)} />;
   }
+  if (!student && membersOnly((await getTimetableConfig()).mode)) return <MembersOnly />;
 
   const [{ state, days }, seats, homework] = await Promise.all([
     upcomingSchedule(7),

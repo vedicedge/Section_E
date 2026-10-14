@@ -105,6 +105,14 @@ export async function saveTimetableConfig(patch: Partial<TimetableConfig>) {
   await setSetting(CONFIG_KEY, { ...current, ...patch });
 }
 
+/**
+ * Relay and upload copies come from a sheet shared only with specific accounts, so the site shows
+ * them to registered students only. A public share link is public anyway.
+ */
+export function membersOnly(mode: TimetableMode): boolean {
+  return mode !== 'link';
+}
+
 /** True when the timetable feature is switched on (cheap; no download). */
 export async function isTimetableEnabled(): Promise<boolean> {
   return (await getTimetableConfig()).enabled;
@@ -195,12 +203,27 @@ export interface IncomingFile {
  * Stores a freshly obtained workbook: re-parses only when the content (or parser) changed, records
  * what changed for Section E since the previous copy, and keeps recent changes for 72 hours.
  */
-async function store(sourceKey: string, file: IncomingFile, config: TimetableConfig, cache: CacheRecord | null): Promise<CacheRecord> {
+interface StoreOptions {
+  /** Re-reading a stored copy isn't a sign of life from the source: keep its checkedAt. */
+  reparse?: boolean;
+  /** Checked just before saving; false leaves the cache alone (the admin switched source meanwhile). */
+  canWrite?: () => Promise<boolean>;
+}
+
+async function store(
+  sourceKey: string,
+  file: IncomingFile,
+  config: TimetableConfig,
+  cache: CacheRecord | null,
+  opts: StoreOptions = {},
+): Promise<CacheRecord> {
   const now = new Date().toISOString();
   const buffer = Buffer.from(file.bytes);
   const hash = sha256(buffer);
   const keepRaw = sourceKey === 'relay' || sourceKey === 'upload';
   const sameSource = Boolean(cache && cache.sourceKey === sourceKey);
+  // Changes are only meaningful against a copy parsed for the same section.
+  const comparable = Boolean(cache && sameSource && cache.section === config.section);
   let next: CacheRecord;
   const sameParse = cache?.parserVersion === PARSER_VERSION && cache?.section === config.section;
   if (cache && sameSource && cache.hash === hash && sameParse && cache.data) {
@@ -209,9 +232,9 @@ async function store(sourceKey: string, file: IncomingFile, config: TimetableCon
     const grids = await readWorkbook(buffer);
     const data = parseTimetable(grids, { section: config.section });
     const contentChanged = !cache || !sameSource || cache.hash !== hash;
-    const fresh = cache && sameSource && contentChanged && cache.data ? diff(cache.data.sessions, data.sessions, now) : [];
+    const fresh = cache && comparable && contentChanged && cache.data ? diff(cache.data.sessions, data.sessions, now) : [];
     const freshKeys = new Set(fresh.map((c) => c.key));
-    const carried = cache && sameSource ? cache.changes.filter((c) => !freshKeys.has(c.key) && Date.parse(c.detectedAt) > Date.now() - CHANGE_WINDOW_MS) : [];
+    const carried = cache && comparable ? cache.changes.filter((c) => !freshKeys.has(c.key) && Date.parse(c.detectedAt) > Date.now() - CHANGE_WINDOW_MS) : [];
     next = {
       sourceKey,
       hash,
@@ -219,17 +242,17 @@ async function store(sourceKey: string, file: IncomingFile, config: TimetableCon
       section: config.section,
       fileName: file.fileName,
       via: file.via,
-      checkedAt: now,
+      checkedAt: opts.reparse && cache ? cache.checkedAt : now,
       contentChangedAt: contentChanged || !cache ? now : cache.contentChangedAt,
       sourceModifiedAt: file.modifiedAt,
       data,
       changes: [...fresh, ...carried],
-      lastError: null,
+      lastError: opts.reparse && cache ? cache.lastError : null,
     };
   }
   if (keepRaw) next.raw = buffer.toString('base64');
   else delete next.raw;
-  await setSetting(CACHE_KEY, next);
+  if (!opts.canWrite || (await opts.canWrite())) await setSetting(CACHE_KEY, next);
   return next;
 }
 
@@ -242,7 +265,10 @@ export async function ingestWorkbook(sourceKey: 'relay' | 'upload', file: Incomi
     return toState(next, sourceKey, 'ok');
   } catch (err) {
     const message = err instanceof Error ? err.message : 'The workbook could not be read.';
-    if (cache) await setSetting(CACHE_KEY, { ...cache, lastError: { code: 'parse', message, at: new Date().toISOString() } });
+    // Only flag the copy this source produced; a bad upload mustn't mark the relay's copy as failing.
+    if (cache && cache.sourceKey === sourceKey) {
+      await setSetting(CACHE_KEY, { ...cache, lastError: { code: 'parse', message, at: new Date().toISOString() } });
+    }
     throw new SourceError('not_xlsx', message);
   }
 }
@@ -272,6 +298,17 @@ export async function relayHeartbeat(modifiedAt: string | null): Promise<boolean
 
 let inflight: Promise<TimetableState> | null = null;
 
+/**
+ * A download can take a while; if the admin uploads a workbook or changes the link meanwhile,
+ * the late result must not overwrite it.
+ */
+function stillLinkedTo(url: string) {
+  return async () => {
+    const config = await getTimetableConfig();
+    return config.enabled && config.mode === 'link' && config.url === url;
+  };
+}
+
 async function refreshFromLink(config: TimetableConfig & { url: string }, cache: CacheRecord | null): Promise<TimetableState> {
   const now = new Date().toISOString();
   let source;
@@ -282,7 +319,7 @@ async function refreshFromLink(config: TimetableConfig & { url: string }, cache:
   }
   try {
     const file = await downloadSource(source, env.googleApiKey);
-    const next = await store(config.url, file, config, cache);
+    const next = await store(config.url, file, config, cache, { canWrite: stillLinkedTo(config.url) });
     return toState(next, 'link', 'ok');
   } catch (err) {
     const error =
@@ -291,7 +328,7 @@ async function refreshFromLink(config: TimetableConfig & { url: string }, cache:
         : { code: 'parse', message: err instanceof Error ? err.message : 'The timetable could not be read.' };
     console.error('[section-e] timetable refresh failed:', error.message);
     if (cache && cache.sourceKey === config.url && cache.data) {
-      await setSetting(CACHE_KEY, { ...cache, lastError: { ...error, at: now } });
+      if (await stillLinkedTo(config.url)()) await setSetting(CACHE_KEY, { ...cache, lastError: { ...error, at: now } });
       return toState(cache, 'link', 'stale', error);
     }
     return { status: 'error', mode: 'link', error, source: describeSource(source) };
@@ -311,7 +348,13 @@ export async function getTimetable(opts: { force?: boolean } = {}): Promise<Time
     if (!cache || cache.sourceKey !== key || !cache.data) return { status: 'pending', mode: config.mode };
     if ((cache.parserVersion !== PARSER_VERSION || cache.section !== config.section) && cache.raw) {
       // Parser upgraded or section changed since this copy arrived: re-read the stored workbook.
-      cache = await store(key, { bytes: Buffer.from(cache.raw, 'base64'), fileName: cache.fileName, modifiedAt: cache.sourceModifiedAt, via: cache.via }, config, cache);
+      cache = await store(
+        key,
+        { bytes: Buffer.from(cache.raw, 'base64'), fileName: cache.fileName, modifiedAt: cache.sourceModifiedAt, via: cache.via },
+        config,
+        cache,
+        { reparse: true },
+      );
     }
     if (config.mode === 'relay' && Date.now() - Date.parse(cache.checkedAt) > RELAY_QUIET_MS) {
       return toState(cache, 'relay', 'stale', {

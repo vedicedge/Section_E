@@ -55,11 +55,12 @@ Without the PIN, anyone could type a classmate's roll number and see their seat 
 
 ### Live timetable
 - **Sources** (chosen in `/admin/timetable`, no redeploy needed):
-  - **Apps Script relay**, for sheets restricted to specific email IDs. A ~30-line Google Apps Script, generated for you in the admin page, runs in *your* Google account (the one that can open the timetable). Every 10 minutes it checks the sheet's version and sends the workbook only when it changed. It needs no Google Cloud project, no API keys, and no change to the sheet's sharing. If it goes quiet for 2 hours, the site flags the copy as possibly out of date, and Google emails you if the script starts failing.
+  - **Apps Script relay**, for sheets restricted to specific email IDs. A ~30-line Google Apps Script, generated for you in the admin page, runs in *your* Google account (the one that can open the timetable). Every 10 minutes it checks the sheet's version and sends the workbook only when it changed. It needs no Google Cloud project, no API keys, and no change to the sheet's sharing. If it goes quiet for 2 hours, the site flags the copy as possibly out of date, and Google emails you if the script starts failing. On Vercel a request body can be at most ~4.5 MB, so the relay handles workbooks up to about 3.3 MB (they travel base64-encoded); a timetable sheet is normally far smaller.
   - **Public share link:** Google Drive / Sheets shared as *Anyone with the link → Viewer*, OneDrive / SharePoint "anyone" links, or any direct `.xlsx` link. The server downloads it at most once every `TIMETABLE_TTL_SECONDS` (default 120). A *Refresh* button forces a new download. `GOOGLE_API_KEY` adds exact "last edited" times for Drive files.
   - **Manual upload:** upload the `.xlsx` whenever it changes.
 - **On/off switch:** if you'd rather not have a timetable, switch it off. The tab, the landing schedule and the next-class hints disappear, and homework uses fixed due dates.
 - All visitors share one parsed copy cached in Postgres.
+- **Who can see it:** a copy that arrives through the relay or an upload comes from a restricted sheet, so it is shown only to registered students. A public share link is shown to everyone.
 - **States:** a loading skeleton, *Live · synced 2 min ago*, *Sheet last edited …*, an error state, and a *stale copy* warning if the source can't be reached but an earlier copy exists.
 - **Change detection:** when the content changes, every Section E session is compared with the previous version. Changes from the last 72 hours are listed ("CF → OM"), and the affected classes are badged.
 - **Layout detection** (`src/lib/timetable/parse.ts`) reads:

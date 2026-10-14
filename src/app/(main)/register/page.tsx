@@ -11,7 +11,8 @@ export const dynamic = 'force-dynamic';
 
 function safeNext(next: string | string[] | undefined): string {
   const value = Array.isArray(next) ? next[0] : next;
-  return value && value.startsWith('/') && !value.startsWith('//') ? value : '/seat';
+  // Same-site paths only: "//host" and "/\host" are read by browsers as another site.
+  return value && /^\/(?![/\\])[^\s\\]*$/.test(value) ? value : '/seat';
 }
 
 export default async function RegisterPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {

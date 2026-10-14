@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getTimetable, type TimetableMode } from '@/lib/timetable/service';
+import { getTimetable, membersOnly, type TimetableMode } from '@/lib/timetable/service';
 import { matchSubject } from '@/lib/timetable/match';
 import { activePlanSummaries, planStatus, seatsForStudent } from '@/lib/seating/repo';
 import { getStudent } from '@/lib/session';
@@ -60,6 +60,24 @@ function TimetableSkeleton() {
 
 async function TimetableBody() {
   const [state, plans, student] = await Promise.all([getTimetable(), activePlanSummaries(), getStudent()]);
+
+  if ('mode' in state && membersOnly(state.mode) && !student) {
+    return (
+      <div className={styles.empty}>
+        <Pavilion className={styles.emptyArt} />
+        <h2 className={styles.emptyTitle}>
+          For Section E <em>only.</em>
+        </h2>
+        <p className="muted">
+          The official sheet is shared only with the section, so this copy is too. Register with your roll number to see the timetable —
+          with your seat next to every class.
+        </p>
+        <Link href="/register?next=/timetable" className="btn btn--accent">
+          Register to view
+        </Link>
+      </div>
+    );
+  }
 
   if (state.status === 'unconfigured') {
     return (

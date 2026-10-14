@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { api } from '@/lib/client-api';
+import { forgetReminderOwner } from '@/lib/push-client';
 import styles from './register.module.css';
 
 type Step =
@@ -44,6 +45,7 @@ export function RegisterFlow({ next }: { next: string }) {
     const res = await api<{ firstName: string }>('/api/auth/pin', { rollNo: step.rollNo, pin, mode: step.kind });
     setBusy(false);
     if (!res.ok) return setError(res.error);
+    forgetReminderOwner();
     setStep({ kind: 'welcome', firstName: res.data.firstName });
     router.refresh();
     setTimeout(() => router.push(next), 900);

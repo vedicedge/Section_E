@@ -22,6 +22,30 @@ function ensureVapid() {
   }
 }
 
+/**
+ * The server POSTs to whatever endpoint is stored, so only the browsers' own push services are
+ * accepted (Chrome/Android, Firefox, Safari, Edge) — never an arbitrary or internal URL.
+ * The raw string is checked rather than a parsed URL: web-push connects using Node's legacy URL
+ * parser, which reads some strings (e.g. "https://evil.example;.fcm.googleapis.com/") as a
+ * different host than the WHATWG parser does.
+ */
+const PUSH_HOSTS = ['fcm.googleapis.com', 'android.googleapis.com', 'push.services.mozilla.com', 'push.apple.com', 'notify.windows.com'];
+const PUSH_URL = /^https:\/\/([a-z0-9-]+(?:\.[a-z0-9-]+)+)\/[\x21-\x5b\x5d-\x7e]*$/i;
+
+export function isPushService(endpoint: string): boolean {
+  const host = PUSH_URL.exec(endpoint)?.[1]?.toLowerCase();
+  return Boolean(host && PUSH_HOSTS.some((h) => host === h || host.endsWith(`.${h}`)));
+}
+
+/** Rejects after `ms` so one unresponsive push service can't hold up the whole send. */
+function within<T>(ms: number, promise: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('Push service timed out.')), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 export interface SubscriptionInput {
   endpoint: string;
   keys: { p256dh: string; auth: string };
@@ -98,11 +122,16 @@ export async function sendPush(rolls: string[] | 'all', payload: PushPayload): P
     const batch = subs.slice(i, i + 20);
     const outcomes = await Promise.allSettled(
       batch.map((s) =>
-        webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, body, {
-          TTL: 12 * 3600,
-          urgency: 'normal',
-          timeout: 10_000,
-        }),
+        isPushService(s.endpoint)
+          ? within(
+              15_000,
+              webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, body, {
+                TTL: 12 * 3600,
+                urgency: 'normal',
+                timeout: 10_000,
+              }),
+            )
+          : Promise.reject(Object.assign(new Error('Not a push service endpoint.'), { statusCode: 410 })),
       ),
     );
     for (const [k, outcome] of outcomes.entries()) {

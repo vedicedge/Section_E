@@ -3,6 +3,7 @@ import { query, queryOne, transaction } from '../db';
 import { newId } from '../crypto';
 import { HttpError } from '../http';
 import { matchSubject } from '../timetable/match';
+import { subjectKey } from '../names';
 import { getTimetable } from '../timetable/service';
 import { activePlanSummaries, type PlanRecord } from '../seating/repo';
 import { addDays, todayISO } from '../time';
@@ -98,12 +99,21 @@ export async function loadDueContext(plans?: PlanRecord[]): Promise<DueContext |
  */
 export async function resolveAll(records: HomeworkRecord[], ctx: DueContext | null, today = todayISO()): Promise<HomeworkView[]> {
   const views = records.map((r) => {
-    const due = resolveDue(r, ctx);
+    const due = resolveDue(r, ctx, today);
     return { ...r, due, bucket: bucketOf(due, today) };
   });
-  const stale = views.filter((v) => v.dueMode === 'next_class' && v.due.source === 'timetable' && (v.due.date !== v.dueDate || v.due.time !== v.dueTime));
+  // New next-class dates are saved; a date the timetable now contradicts (class cancelled) is cleared.
+  const stale = views.filter(
+    (v) =>
+      v.dueMode === 'next_class' &&
+      ((v.due.source === 'timetable' && (v.due.date !== v.dueDate || v.due.time !== v.dueTime)) || (v.due.source === 'unknown' && v.dueDate !== null)),
+  );
   for (const v of stale) {
-    await query('UPDATE homework SET due_date = $2, due_time = $3 WHERE id = $1', [v.id, v.due.date, v.due.time]);
+    // Guarded so a read racing an admin edit can't write a deadline computed for the old subject/day.
+    await query(
+      `UPDATE homework SET due_date = $2, due_time = $3 WHERE id = $1 AND due_mode = 'next_class' AND given_on = $4 AND subject_code = $5`,
+      [v.id, v.due.date, v.due.time, v.givenOn, v.subjectCode],
+    );
   }
   return views.sort(compareDue);
 }
@@ -130,8 +140,11 @@ export async function doneIds(rollNo: string): Promise<Set<string>> {
   return new Set(rows.map((r) => r.homework_id));
 }
 
+/** How many students on the active roster ticked off each item. */
 export async function doneCounts(): Promise<Map<string, number>> {
-  const rows = await query<{ homework_id: string; n: number }>('SELECT homework_id, count(*)::int AS n FROM homework_done GROUP BY homework_id');
+  const rows = await query<{ homework_id: string; n: number }>(
+    'SELECT d.homework_id, count(*)::int AS n FROM homework_done d JOIN students st ON st.roll_no = d.roll_no AND st.active GROUP BY d.homework_id',
+  );
   return new Map(rows.map((r) => [r.homework_id, Number(r.n)]));
 }
 
@@ -207,10 +220,18 @@ export async function createHomework(items: HomeworkInput[]): Promise<HomeworkVi
 
 export async function updateHomework(id: string, input: HomeworkInput): Promise<HomeworkView> {
   validate(input);
-  const ctx = await loadDueContext();
+  const [ctx, prev] = await Promise.all([loadDueContext(), getHomework(id)]);
+  if (!prev) throw new HttpError(404, 'That homework no longer exists.', 'not_found');
   let { dueDate, dueTime } = input;
   if (input.dueMode === 'next_class') {
-    const due = resolveDue({ ...input, dueDate: null, dueTime: null }, ctx);
+    // Editing the wording shouldn't lose the known deadline while the timetable is unavailable.
+    const sameDeadline =
+      prev.dueMode === 'next_class' && prev.givenOn === input.givenOn && subjectKey(prev.subjectCode) === subjectKey(input.subjectCode);
+    const due = resolveDue(
+      { ...input, dueDate: sameDeadline ? prev.dueDate : null, dueTime: sameDeadline ? prev.dueTime : null },
+      ctx,
+      todayISO(),
+    );
     dueDate = due.date;
     dueTime = due.time;
   }
@@ -231,7 +252,13 @@ export async function deleteHomework(id: string) {
 export async function homeworkForAdmin() {
   const [records, counts, ctx] = await Promise.all([recentHomework(90), doneCounts(), loadDueContext()]);
   const views = await resolveAll(records, ctx);
-  return views.map((v) => ({ ...v, doneCount: counts.get(v.id) ?? 0 }));
+  // Students stop seeing undated items 45 days after they were given; file them with the past ones.
+  const cutoff = addDays(todayISO(), -45);
+  return views.map((v) => ({
+    ...v,
+    bucket: v.bucket === 'undated' && v.givenOn < cutoff ? ('past' as const) : v.bucket,
+    doneCount: counts.get(v.id) ?? 0,
+  }));
 }
 
 /* --------------------------------------------------- cheap counters */

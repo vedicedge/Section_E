@@ -257,6 +257,14 @@ test.describe.serial('Section E', () => {
     const hb2 = await request.post(endpoint, { headers: auth, data: { fileName: 'Timetable.xlsx', modifiedAt } });
     expect((await hb2.json()).needFile).toBe(false);
 
+    // A copy of a restricted sheet is for registered students only.
+    await page.goto('/timetable');
+    await expect(page.getByRole('heading', { name: /For Section E only/ })).toBeVisible();
+    await expect(page.getByText('Strategic Management')).toHaveCount(0);
+    await page.goto('/');
+    await expect(page.getByText(/shared with Section E only/)).toBeVisible();
+
+    await signIn(page, '26PGDM902', '2468');
     await page.goto('/timetable');
     await expect(page.getByText(/relay/i).first()).toBeVisible();
     await expect(page.getByText('Strategic Management').first()).toBeVisible();
