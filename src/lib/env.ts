@@ -9,11 +9,24 @@ function int(name: string, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
+/**
+ * The Postgres connection string. Vercel's database integrations name it differently depending on
+ * the provider and the prefix chosen when connecting (DATABASE_URL, POSTGRES_URL, STORAGE_DATABASE_URL…).
+ */
+function databaseUrl(): string | null {
+  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+  if (process.env.POSTGRES_URL) return process.env.POSTGRES_URL;
+  const key = Object.keys(process.env)
+    .sort()
+    .find((k) => /_(DATABASE|POSTGRES)_URL$/.test(k) && process.env[k]);
+  return key ? process.env[key]! : null;
+}
+
 let warnedSecret = false;
 
 export const env = {
   isProd,
-  databaseUrl: process.env.DATABASE_URL || null,
+  databaseUrl: databaseUrl(),
   pgliteDir: process.env.PGLITE_DIR || '.data/pglite',
 
   /** Default timetable source; the admin can override it from /admin/timetable without a redeploy. */
