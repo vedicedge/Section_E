@@ -4,7 +4,7 @@
   color: var(--ink);
 }
 .red {
-  color: var(--ink-on-red);
+  color: var(--on-red);
 }
 
 .inner {

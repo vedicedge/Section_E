@@ -14,8 +14,8 @@
   gap: 6px;
   padding: 18px 22px;
   margin-bottom: clamp(32px, 5vw, 56px);
-  background: var(--vermilion);
-  color: var(--ink-on-red);
+  background: var(--red-surface);
+  color: var(--on-red);
   border-radius: 4px;
   transition: transform 0.3s var(--ease);
 }
@@ -239,8 +239,8 @@
   opacity: 0.6;
 }
 .mapSeatMine {
-  background: var(--vermilion);
-  border-color: var(--vermilion);
+  background: var(--red-surface);
+  border-color: var(--red-surface);
   color: var(--bone);
   font-weight: 700;
   font-size: 11px;

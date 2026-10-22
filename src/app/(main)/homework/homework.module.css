@@ -21,20 +21,20 @@
 
 /* The panel re-points the colour tokens, so every child — ticks, links, focus rings — reads on red. */
 .tomorrow {
-  --ink: var(--ink-on-red);
-  --muted: var(--ink-on-red);
-  --accent: var(--ink-on-red);
-  --line: color-mix(in srgb, var(--ink-on-red) 24%, transparent);
-  --line-strong: color-mix(in srgb, var(--ink-on-red) 55%, transparent);
-  --focus: var(--ink-on-red);
-  background: var(--vermilion);
-  color: var(--ink-on-red);
+  --ink: var(--on-red);
+  --muted: var(--on-red);
+  --accent: var(--on-red);
+  --line: color-mix(in srgb, var(--on-red) 24%, transparent);
+  --line-strong: color-mix(in srgb, var(--on-red) 55%, transparent);
+  --focus: var(--on-red);
+  background: var(--red-surface);
+  color: var(--on-red);
   border-radius: 4px;
   padding: clamp(20px, 3vw, 36px) clamp(16px, 3vw, 36px) clamp(6px, 1.2vw, 14px);
 }
 .tomorrow ::selection {
-  background: var(--ink-on-red);
-  color: var(--vermilion);
+  background: var(--on-red);
+  color: var(--red-surface);
 }
 .tomorrowHead {
   display: grid;
@@ -73,7 +73,7 @@
   padding: clamp(20px, 3vw, 32px) clamp(16px, 3vw, 32px);
   background: var(--card);
   border: 1px solid var(--line);
-  border-left: 3px solid var(--vermilion);
+  border-left: 3px solid var(--red-surface);
   border-radius: 4px;
 }
 .quiet .tomorrowLabel {
@@ -325,12 +325,12 @@
     stroke-dashoffset: 0;
   }
   .tomorrow .tick:hover .tickMark {
-    color: color-mix(in srgb, var(--ink-on-red) 45%, transparent);
+    color: color-mix(in srgb, var(--on-red) 45%, transparent);
   }
 }
 .tickInput:checked + .tickMark {
-  background: var(--vermilion);
-  border-color: var(--vermilion);
+  background: var(--red-surface);
+  border-color: var(--red-surface);
   color: var(--bone);
 }
 .tickInput:checked + .tickMark path {
@@ -361,9 +361,9 @@
 }
 
 .tomorrow .tickInput:checked + .tickMark {
-  background: var(--ink-on-red);
-  border-color: var(--ink-on-red);
-  color: var(--vermilion);
+  background: var(--on-red);
+  border-color: var(--on-red);
+  color: var(--red-surface);
 }
 
 /* ------------------------------------------------------------------ past */

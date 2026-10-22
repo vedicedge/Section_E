@@ -54,8 +54,8 @@
   height: 18px;
   padding: 0 5px;
   border-radius: 999px;
-  background: var(--vermilion);
-  color: var(--ink-on-red);
+  background: var(--red-surface);
+  color: var(--on-red);
   font-family: var(--sans);
   font-size: 10.5px;
   font-weight: 650;
@@ -71,8 +71,8 @@
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: var(--vermilion);
-  color: var(--ink-on-red);
+  background: var(--red-surface);
+  color: var(--on-red);
   overflow-y: auto;
 }
 .panel[hidden] {
@@ -134,7 +134,7 @@
 }
 .item:hover,
 .item[aria-current='page'] {
-  color: var(--bone);
+  color: var(--on-red-hi);
 }
 .num {
   font-style: italic;

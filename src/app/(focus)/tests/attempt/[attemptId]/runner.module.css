@@ -169,8 +169,8 @@
   color: var(--paper);
 }
 .optionOn .letter {
-  background: var(--vermilion);
-  border-color: var(--vermilion);
+  background: var(--red-surface);
+  border-color: var(--red-surface);
   color: var(--bone);
 }
 .optionText {

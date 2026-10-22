@@ -2,15 +2,15 @@
 
 .hero {
   position: relative;
-  background: var(--vermilion);
-  color: var(--ink-on-red);
+  background: var(--red-surface);
+  color: var(--on-red);
   min-height: 100vh;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   isolation: isolate;
-  --engrave-bg: var(--vermilion);
+  --engrave-bg: var(--red-surface);
 }
 /* subtle paper grain over the red, like a printed plate */
 .hero::before {
@@ -104,10 +104,10 @@
 .feature:hover,
 .feature:focus-visible,
 .featureActive {
-  color: var(--bone);
+  color: var(--on-red-hi);
 }
 .feature:focus-visible {
-  outline-color: var(--bone);
+  outline-color: var(--on-red-hi);
   outline-offset: 6px;
 }
 
@@ -190,7 +190,7 @@
   font-size: clamp(110px, 23vw, 400px);
   line-height: 1;
   white-space: nowrap;
-  color: rgb(22 10 6 / 0.08);
+  color: color-mix(in srgb, var(--on-red) 8%, transparent);
   opacity: 0;
   transform: translateY(12px);
   transition:
@@ -256,14 +256,14 @@
 .monumentLetter {
   position: relative;
   display: block;
-  color: var(--ink-on-red);
+  color: var(--on-red);
 }
 .monumentShadow {
   position: absolute;
   left: 0.045em;
   top: 0.03em;
   color: transparent;
-  background: repeating-linear-gradient(135deg, var(--ink-on-red) 0 1.3px, transparent 1.3px 5px);
+  background: repeating-linear-gradient(135deg, var(--on-red) 0 1.3px, transparent 1.3px 5px);
   -webkit-background-clip: text;
   background-clip: text;
 }
