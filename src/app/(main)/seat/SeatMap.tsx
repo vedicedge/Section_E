@@ -4,7 +4,8 @@ import styles from './seat.module.css';
 /**
  * The room drawn from seat counts only — every other seat is an anonymous shape, so the map
  * shows where you sit without revealing who sits anywhere else. Orientation matches the
- * official sheet (highest row at the top, Row 1 at the front).
+ * official sheet (highest row at the top, Row 1 at the front), and seats are numbered from the
+ * right, as in the room.
  */
 export function SeatMap({ layout, seat, label }: { layout: MySeat['plan']['layout']; seat: MySeat['seat']; label: string }) {
   const max = Math.max(...layout.map((r) => r.seats.length));

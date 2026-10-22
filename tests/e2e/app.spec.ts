@@ -98,6 +98,10 @@ test.describe.serial('Section E', () => {
     // SM: 26PGDM902 is Row 2, seat 2 in the fixture.
     await page.getByRole('button', { name: /^Strategic Management: Row 2, seat 2/ }).click();
     await expect(page.getByLabel(/Room map: your seat is Row 2, seat 2/)).toBeVisible();
+    // Seats are numbered from the right, as in the room: seat 1 sits right of seat 2.
+    const mine = await page.getByLabel(/^Your seat, 2$/).boundingBox();
+    const seatOne = await page.getByLabel(/^Your seat, 2$/).locator('xpath=preceding-sibling::*[1]').boundingBox();
+    expect(seatOne!.x).toBeGreaterThan(mine!.x);
     // No other student's identity is rendered anywhere on the page.
     const html = await page.content();
     for (const other of ['26PGDM901', '26PGDM903', '26PGDM904', '26PGDM905', 'Test Student 901']) expect(html).not.toContain(other);

@@ -218,6 +218,8 @@
 }
 .mapSeats {
   display: flex;
+  /* Seat 1 is on the right-hand end of each row in the Section E room. */
+  flex-direction: row-reverse;
   justify-content: center;
   gap: clamp(4px, 0.6vw, 8px);
 }
