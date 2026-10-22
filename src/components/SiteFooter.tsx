@@ -1,13 +1,14 @@
 import Link from 'next/link';
-import { timetableEnabled } from './SiteHeader';
+import { attendanceEnabled, timetableEnabled } from './SiteHeader';
 import styles from './SiteFooter.module.css';
 
 export async function SiteFooter() {
-  const timetable = await timetableEnabled();
+  const [timetable, attendance] = await Promise.all([timetableEnabled(), attendanceEnabled()]);
   const links = [
     { href: '/', label: 'Home' },
     { href: '/seat', label: 'My Seating Plan' },
     { href: '/homework', label: 'Homework' },
+    ...(attendance ? [{ href: '/attendance', label: 'Attendance' }] : []),
     ...(timetable ? [{ href: '/timetable', label: 'Live Timetable' }] : []),
     { href: '/tests', label: 'OLT Mock Tests' },
   ];
@@ -36,8 +37,8 @@ export async function SiteFooter() {
           <div>
             <p className="eyebrow">Privacy</p>
             <p className={styles.small}>
-              You only ever see your own seat and your own homework ticks. Roll numbers are protected by a PIN, and nothing here is shared
-              with other sections.
+              You only ever see your own seat, your own homework ticks and your own hearts. Roll numbers are protected by a PIN, and nothing
+              here is shared with other sections.
             </p>
           </div>
         </div>

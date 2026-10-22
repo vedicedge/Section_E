@@ -155,4 +155,18 @@ export const MIGRATIONS: string[] = [
     detail     TEXT
   );
   `,
+
+  // 3 — attendance: each student's own leave count per subject (private; no FK, like homework_done).
+  `
+  CREATE TABLE attendance (
+    roll_no        TEXT NOT NULL,
+    subject_id     TEXT NOT NULL,
+    total_override INTEGER CHECK (total_override BETWEEN 1 AND 200),
+    held           INTEGER CHECK (held BETWEEN 0 AND 200),
+    held_on        DATE,
+    missed         INTEGER NOT NULL DEFAULT 0 CHECK (missed BETWEEN 0 AND 200),
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (roll_no, subject_id)
+  );
+  `,
 ];

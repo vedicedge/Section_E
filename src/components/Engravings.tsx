@@ -3,6 +3,8 @@
  * crown). Drawn with strokes + hatching in currentColor, so they sit on red, paper or ink.
  */
 
+import { HEART_PATH } from '@/lib/attendance/calc';
+
 type Props = { className?: string; title?: string };
 
 function Hatch({ id, angle = 0, gap = 3, width = 0.6 }: { id: string; angle?: number; gap?: number; width?: number }) {
@@ -98,6 +100,41 @@ export function Hourglass({ className, title = 'Hourglass engraving' }: Props) {
         <path d="M24 26 C27 40 37 48 39 56 H41 C43 48 53 40 56 26 Z" fill="url(#hg-sand)" stroke="none" />
         <path d="M40 60 V96" strokeWidth="0.8" strokeDasharray="1.5 2.5" />
         <path d="M22 106 C26 94 34 90 40 89 C46 90 54 94 58 106 Z" fill="url(#hg-sand)" />
+      </g>
+    </svg>
+  );
+}
+
+/** A heart-shaped locket on its bail — the Attendance tab's plate. */
+export function Locket({ className, title = 'Locket engraving' }: Props) {
+  // The heart path (48×44 box) scaled ×2.2 and centred on (60, 66); the inner contour at ×1.9.
+  const outer = 'translate(7.2 17.6) scale(2.2)';
+  const inner = 'translate(14.4 24.2) scale(1.9)';
+  return (
+    <svg className={className} viewBox="0 0 120 120" fill="none" role="img" aria-label={title}>
+      <defs>
+        <Hatch id="locket-h" angle={45} gap={1.2} width={0.28} />
+        <Hatch id="locket-b" angle={-45} gap={1.05} width={0.24} />
+      </defs>
+      <g stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" strokeLinecap="round">
+        {/* bail */}
+        <circle cx="60" cy="14" r="6" />
+        <circle cx="60" cy="14" r="3.2" strokeWidth="0.7" />
+        <path d="M57.6 19.6 C57.8 24 58.6 30 60 37.4 C61.4 30 62.2 24 62.4 19.6" fill="url(#locket-b)" />
+        {/* the rim: double contour, hatched between */}
+        <path d={HEART_PATH} transform={outer} vectorEffect="non-scaling-stroke" fill="url(#locket-b)" />
+        <path d={HEART_PATH} transform={inner} vectorEffect="non-scaling-stroke" fill="var(--engrave-bg, var(--paper))" />
+        {/* the face: shade on the lower right, glint on the upper left */}
+        <path
+          d="M46 14 C46 24 38 32 24 42 C33.5 33 40.5 25 41.4 15.5 C41.8 10.8 39.8 6.6 36.5 4.3 C42 5.2 46 9.2 46 14 Z"
+          transform={inner}
+          fill="url(#locket-h)"
+          stroke="none"
+        />
+        <path d="M8.5 14 C8.7 9.8 11.2 7.2 14.8 6.8" transform={inner} vectorEffect="non-scaling-stroke" strokeWidth="1.4" />
+        {/* keyhole */}
+        <circle cx="60" cy="58" r="4" fill="currentColor" />
+        <path d="M58 61 h4 l1.5 10 h-7 z" fill="currentColor" />
       </g>
     </svg>
   );

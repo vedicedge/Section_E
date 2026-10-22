@@ -5,6 +5,7 @@ import { SiteFooter } from '@/components/SiteFooter';
 import { Crown, Pavilion } from '@/components/Engravings';
 import { query } from '@/lib/db';
 import { getStudent } from '@/lib/session';
+import { heroHearts } from '@/lib/attendance/repo';
 import { countLiveQuizzes } from '@/lib/quizzes/repo';
 import { openHomeworkCount } from '@/lib/homework/repo';
 import { HeroFeatures, type HeroFeature } from './HeroFeatures';
@@ -28,7 +29,13 @@ async function stats() {
 }
 
 export default async function Home() {
-  const [s, student, timetable] = await Promise.all([stats(), getStudent(), timetableEnabled()]);
+  const studentLoad = getStudent();
+  const [s, student, timetable, h] = await Promise.all([
+    stats(),
+    studentLoad,
+    timetableEnabled(),
+    studentLoad.then((st) => heroHearts(st?.rollNo ?? null)),
+  ]);
   const features: HeroFeature[] = [
     {
       href: '/seat',
@@ -54,6 +61,22 @@ export default async function Home() {
       script: 'Homework',
       caption: 'What’s due, and when — with a reminder the night before.',
     },
+    ...(h.enabled
+      ? [
+          {
+            href: '/attendance',
+            label: (
+              <>
+                Atten<em>dance</em>
+              </>
+            ),
+            plain: 'Attendance',
+            count: pad2(h.left ?? h.hearts),
+            script: 'Hearts',
+            caption: 'Your leaves, kept as hearts — strike one off, see what’s left.',
+          },
+        ]
+      : []),
     ...(timetable
       ? [
           {
@@ -106,9 +129,13 @@ export default async function Home() {
             <div className={`${styles.note} ${styles.noteRight}`}>
               <Crown className={styles.noteArt} />
               <p className="caps">
-                {timetable
-                  ? 'Your seat, your classes, your homework and your mock tests — personalised to your roll number.'
-                  : 'Your seat, your homework and your mock tests — personalised to your roll number.'}
+                {h.enabled
+                  ? timetable
+                    ? 'Your seat, your classes, your homework, your hearts and your mock tests — personalised to your roll number.'
+                    : 'Your seat, your homework, your hearts and your mock tests — personalised to your roll number.'
+                  : timetable
+                    ? 'Your seat, your classes, your homework and your mock tests — personalised to your roll number.'
+                    : 'Your seat, your homework and your mock tests — personalised to your roll number.'}
               </p>
             </div>
           </div>

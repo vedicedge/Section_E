@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { formatPercent } from '@/lib/attendance/calc';
+import { attendanceSummary } from '@/lib/attendance/repo';
 import { query } from '@/lib/db';
 import { env } from '@/lib/env';
 import { openHomeworkCount } from '@/lib/homework/repo';
@@ -46,7 +48,7 @@ function timetableSummary(tt: TimetableDiagnostics, now: number): { value: strin
 
 export default async function AdminHome() {
   await requireAdminPage();
-  const [[counts], quizzes, tt, openHomework, subscribers] = await Promise.all([
+  const [[counts], quizzes, tt, openHomework, subscribers, attendance] = await Promise.all([
     query<{ students: number; registered: number; plans: number; attempts: number }>(
       `SELECT (SELECT count(*)::int FROM students WHERE active) AS students,
               (SELECT count(*)::int FROM students WHERE active AND pin_hash IS NOT NULL) AS registered,
@@ -57,6 +59,7 @@ export default async function AdminHome() {
     getTimetableDiagnostics(),
     openHomeworkCount(),
     pushConfigured() ? subscriptionStats() : Promise.resolve(null),
+    attendanceSummary(),
   ]);
   const live = quizzes.filter((q) => q.phase === 'live').length;
   const drafts = quizzes.filter((q) => q.phase === 'draft').length;
@@ -120,6 +123,15 @@ export default async function AdminHome() {
               : env.cronSecret
                 ? `${plural(subscribers.devices, 'device')} · a push the evening before homework is due`
                 : `${plural(subscribers.devices, 'device')} · set CRON_SECRET so the evening reminder runs`}
+          </span>
+        </Link>
+        <Link href="/admin/attendance" className={styles.card}>
+          <span className={styles.cardLabel}>Attendance</span>
+          <span className={`${styles.cardValue} tabular`}>{attendance.tracking}</span>
+          <span className={styles.cardNote}>
+            {attendance.enabled
+              ? `${attendance.tracking === 1 ? 'student' : 'students'} counting · ${plural(attendance.subjects.length, 'subject')} · ${plural(attendance.hearts, 'heart')} at ${formatPercent(attendance.minPercent)}%`
+              : 'Hidden from students'}
           </span>
         </Link>
         <Link href="/admin/timetable" className={styles.card}>

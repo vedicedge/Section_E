@@ -12,11 +12,12 @@ interface MenuLink {
   label: string;
 }
 
-function menuLinks(timetable: boolean): MenuLink[] {
+function menuLinks(timetable: boolean, attendance: boolean): MenuLink[] {
   return [
     { href: '/', label: 'Home' },
     { href: '/seat', label: 'My Seating Plan' },
     { href: '/homework', label: 'Homework' },
+    ...(attendance ? [{ href: '/attendance', label: 'Attendance' }] : []),
     ...(timetable ? [{ href: '/timetable', label: 'Live Timetable' }] : []),
     { href: '/tests', label: 'OLT Mock Tests' },
   ];
@@ -28,19 +29,21 @@ interface Props {
   student: { rollNo: string; name: string } | null;
   /** Whether the live timetable is switched on (its link is hidden otherwise). */
   timetable: boolean;
+  /** Whether the Attendance tab is switched on (its link is hidden otherwise). */
+  attendance: boolean;
   /** The signed-in student's unticked homework due tomorrow. */
   dueTomorrow: number;
   tone?: 'paper' | 'red';
 }
 
-export function MenuButton({ student, timetable, dueTomorrow, tone = 'paper' }: Props) {
+export function MenuButton({ student, timetable, attendance, dueTomorrow, tone = 'paper' }: Props) {
   const [open, setOpen] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const links = menuLinks(timetable);
+  const links = menuLinks(timetable, attendance);
   const dueText = dueTomorrow > 0 ? `${dueTomorrow} due tomorrow` : null;
   const openLabel = dueTomorrow > 0 ? `Open menu — ${dueTomorrow} homework ${dueTomorrow === 1 ? 'item' : 'items'} due tomorrow` : 'Open menu';
 

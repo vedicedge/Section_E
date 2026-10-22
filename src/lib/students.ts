@@ -102,5 +102,6 @@ export async function setStudentActive(roll: string, active: boolean) {
 export async function deleteStudent(roll: string) {
   await removeAllSubscriptions(roll);
   await query('DELETE FROM homework_done WHERE roll_no = $1', [roll]);
+  await query('DELETE FROM attendance WHERE roll_no = $1', [roll]);
   await query('DELETE FROM students WHERE roll_no = $1', [roll]);
 }

@@ -8,6 +8,7 @@ const LINKS = [
   { href: '/admin', label: 'Overview' },
   { href: '/admin/tests', label: 'Mock tests' },
   { href: '/admin/homework', label: 'Homework' },
+  { href: '/admin/attendance', label: 'Attendance' },
   { href: '/admin/seating', label: 'Seating plans' },
   { href: '/admin/students', label: 'Students' },
   { href: '/admin/timetable', label: 'Timetable' },

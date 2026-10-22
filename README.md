@@ -1,11 +1,12 @@
 # Section E
 
-**Outside the building. Above the rest.** The private website of PGDM 2026–28, Section E. It gives every student four things:
+**Outside the building. Above the rest.** The private website of PGDM 2026–28, Section E. It gives every student five things:
 
 | | |
 |---|---|
 | **My Seating Plan** | Your seat for every subject. You see only your own seat, on an anonymous room map. |
 | **Homework** | What's due and when — due the next class of that subject or on a set date — with a phone reminder the evening before. |
+| **Attendance** | Your own private leave count per subject — the classes you can still miss at 80%, drawn as hearts you strike off. |
 | **Live Timetable** | The official timetable, synced from the college's workbook even when it is restricted to certain email IDs. Section E's classes are pulled out, and each class shows *your* seat. The admin can switch it off. |
 | **OLT Mock Tests** | Timed MCQ practice tests that the admin creates, schedules and publishes from a dashboard. |
 
@@ -52,6 +53,14 @@ Without the PIN, anyone could type a classmate's roll number and see their seat 
 - **Students:** `/homework` groups work into *Due tomorrow*, *Due today*, *Coming up*, *Date to be confirmed* and *Past*. Each item can be ticked off. Ticks are private and also stop reminders for that item. The landing page shows what's due tomorrow, and the menu shows a count.
 - **Reminders:** students can turn on notifications on their phone (Web Push). It works on Android, desktop browsers, and on iPhone once Section E is added to the Home Screen; the page explains how. Every evening around 7 pm IST, each student gets one notification listing what's due tomorrow that they haven't ticked off. The admin can also send it on demand, and can copy a ready-made list for the class WhatsApp group.
 - Homework is visible only to registered Section E students.
+
+### Attendance
+- **The rule:** each subject has a number of sessions in the term, and a student must attend at least 80% of them (the admin can change the percentage). The classes they can miss are their **hearts**: sessions − ⌈80% × sessions⌉. Attendance rounds up and leave never does, so TOD's 14 sessions need 12 attended (80% of 14 is 11.2) and leave **2 hearts**, not 3. The default term (DMA 20, DT 10, CF 20, OM 20, MM II 15, TOD 14, SM 20) comes to 23 hearts.
+- **Students:** `/attendance` draws each subject's hearts. Tap one (or *+ Took a leave*) to strike it off when you miss a class; tap a struck heart or *Undo* to restore it. Going past the limit asks once, then marks the subject *in the red*. *Adjust numbers* sets a different session count, the leaves already taken, and optionally the classes held so far (for a current percentage). Strikes are saved as deltas, so two devices never overwrite each other.
+- **Not the official register.** It is each student's own count. When the two disagree, the college register wins.
+- **Admin:** `/admin/attendance` holds the on/off switch, the minimum percentage, the term label, and the subjects with their sessions — no redeploy. Subjects keep a stable id, so renaming one (DMA → DAM) keeps every student's count; *Also matches* adds extra labels for matching seating plans and timetable classes. Changes that alter students' hearts are confirmed with a before/after summary.
+- **Privacy:** the admin sees aggregates only — how many students are counting, and per subject how many are out of hearts or over the limit. A subject with fewer than 5 students counting is hidden. No names or roll numbers are shown.
+- **New term:** *Clear every student's hearts* (type RESET) deletes every saved count; the subjects stay.
 
 ### Live timetable
 - **Sources** (chosen in `/admin/timetable`, no redeploy needed):
@@ -117,12 +126,12 @@ Without the PIN, anyone could type a classmate's roll number and see their seat 
 src/
   app/
     page.tsx                 landing (hero, manifesto, "Today in E")
-    (main)/seat|timetable|tests|register
+    (main)/seat|homework|attendance|timetable|tests|register
     (focus)/tests/attempt    distraction-free test runner
     admin/                   login + protected dashboard
     api/                     route handlers (auth, tests, timetable, admin/*)
   lib/
-    seating/  timetable/  quizzes/   domain logic (parsers are pure)
+    seating/  timetable/  quizzes/  homework/  attendance/   domain logic (parsers and maths are pure)
     db.ts  schema.ts  session.ts  http.ts  rate-limit.ts  time.ts
   components/                header, menu, footer, engravings, session list
 tests/unit                   parsers, matching, grading, bulk import
@@ -178,4 +187,5 @@ Any other Node host with Postgres works too: run `npm run build && npm start`.
 
 - The repository is public, so **no student data is committed**. `*.xlsx` and `.data/` are git-ignored. Seating data enters only through the admin upload, into the database.
 - Students' pages include only their own assignments. The room map carries seat numbers and vacancy only, never names or roll numbers.
+- Attendance counts are private to each student: every read and write is keyed to the signed-in roll number, and the admin sees only totals, with subjects under 5 students hidden. Deleting a student deletes their counts.
 - The site is marked `noindex`.

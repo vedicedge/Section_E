@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { cache } from 'react';
 import { getStudent } from '@/lib/session';
+import { isAttendanceEnabled } from '@/lib/attendance/repo';
 import { pendingDueCount } from '@/lib/homework/repo';
 import { isTimetableEnabled } from '@/lib/timetable/service';
 import { addDays, todayISO } from '@/lib/time';
@@ -10,6 +11,8 @@ import styles from './SiteHeader.module.css';
 
 /** The timetable switch, read once per request (the header, footer and landing page all ask). */
 export const timetableEnabled = cache(isTimetableEnabled);
+/** The Attendance tab switch, read once per request (header, footer and landing page). Never throws. */
+export const attendanceEnabled = cache(isAttendanceEnabled);
 
 async function dueTomorrowFor(rollNo: string): Promise<number> {
   try {
@@ -23,7 +26,7 @@ async function dueTomorrowFor(rollNo: string): Promise<number> {
 
 /** Header shared by every student page: "+" menu · script logotype · identity link. */
 export async function SiteHeader({ tone = 'paper' }: { tone?: 'paper' | 'red' }) {
-  const [student, timetable] = await Promise.all([getStudent(), timetableEnabled()]);
+  const [student, timetable, attendance] = await Promise.all([getStudent(), timetableEnabled(), attendanceEnabled()]);
   const dueTomorrow = student ? await dueTomorrowFor(student.rollNo) : 0;
   return (
     <header className={`${styles.header} ${tone === 'red' ? styles.red : ''}`}>
@@ -32,6 +35,7 @@ export async function SiteHeader({ tone = 'paper' }: { tone?: 'paper' | 'red' })
           <MenuButton
             student={student ? { rollNo: student.rollNo, name: student.name } : null}
             timetable={timetable}
+            attendance={attendance}
             dueTomorrow={dueTomorrow}
             tone={tone}
           />

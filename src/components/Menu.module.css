@@ -126,8 +126,8 @@
   align-items: flex-start;
   gap: 0 14px;
   font-family: var(--serif);
-  /* vh term keeps all five items on a short laptop screen without scrolling */
-  font-size: clamp(42px, min(8.5vw, 10.5vh), 112px);
+  /* vh term keeps all six items on a short laptop screen (1280×720) without scrolling */
+  font-size: clamp(42px, min(8.5vw, 9vh), 112px);
   line-height: 1;
   letter-spacing: -0.035em;
   transition: color 0.25s;
