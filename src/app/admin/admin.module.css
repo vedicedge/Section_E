@@ -4,8 +4,8 @@
   display: grid;
   place-items: center;
   padding: 24px 16px;
-  background: var(--red-surface);
-  color: var(--on-red);
+  background: var(--vermilion);
+  color: var(--ink-on-red);
 }
 .loginCard {
   width: min(400px, 100%);

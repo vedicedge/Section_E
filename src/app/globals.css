@@ -10,11 +10,6 @@
   --vermilion-deep: #d22c08;
   --ink-on-red: #160a06;
   --bone: #fff6ee;
-  /* Red panels and the text on them. Dark mode deepens the red and turns the text cream, since
-     near-black on vermilion reads dim to eyes adjusted to a dark screen. */
-  --red-surface: var(--vermilion);
-  --on-red: var(--ink-on-red);
-  --on-red-hi: var(--bone);
 
   --paper: #f3ece2;
   --paper-2: #e9e0d3;
@@ -25,7 +20,7 @@
   --line: rgb(23 17 14 / 0.16);
   --line-strong: rgb(23 17 14 / 0.42);
   --accent: #c82d0a; /* red that passes AA as text on paper */
-  --accent-fill: var(--red-surface);
+  --accent-fill: var(--vermilion);
   --on-accent: #fff6ee;
   --ok: #2f6b3c;
   --warn: #9a5b00;
@@ -57,16 +52,10 @@
     --ok: #7fc48d;
     --warn: #f0b35a;
     --focus: #8fb0ff;
-    --red-surface: #b3260b;
-    --on-red: #fbe6db;
-    --on-red-hi: #ffffff;
     color-scheme: dark;
   }
 }
 :root[data-theme='dark'] {
-  --red-surface: #b3260b;
-  --on-red: #fbe6db;
-  --on-red-hi: #ffffff;
   --paper: #110c0a;
   --paper-2: #1a1310;
   --card: #19120f;
@@ -448,7 +437,7 @@ p {
 }
 .pill--live {
   border-color: transparent;
-  background: var(--red-surface);
+  background: var(--vermilion);
   color: var(--bone);
 }
 .pill--ok {
