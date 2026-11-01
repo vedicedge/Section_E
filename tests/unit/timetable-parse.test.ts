@@ -46,6 +46,38 @@ describe('cell helpers', () => {
 });
 
 describe('parseTimetable', () => {
+  it('reads a venue-per-section sheet: booking notes with times, rooms lent out and borrowed', () => {
+    // The layout of the official sheet: a Session row, a time row, then five rows per day,
+    // one per section and its home room. Names are invented.
+    const g = grid('master', [
+      ['College'],
+      ['Date', 'Days', 'Sec', 'Venue', 'Session - 1', 'Session - 2', 'Session - 3', 'Lunch Break', 'Session - 4', 'Extra Session'],
+      ['', '', '', '', '9:00 - 10:30', '10:45 - 12:15', '12:30 - 2:00', '2:00 - 3:00 p.m.', '3:00 - 4:30', '4.45-6.15'],
+      ['@date:2026-10-28', 'Wednesday', 'A', 'Nestle', 'MM II\n(Prof. A Rao)', '', '', 'CF Quiz 1\n2.05-2.15', 'Booked for PGDM HRM\n2.30-4.00', ''],
+      ['', '', 'B', 'ITC', 'Booked for DT Sec E', '', '', 'CF Quiz 1\n2.05-2.15', 'CF\n(Prof. B Sen)', ''],
+      ['', '', 'E', 'Colosseum', '', 'TOD\n(Prof. C Iyer)', 'Booked for SM Sec B', 'CF Quiz 1\n2.05-2.15', 'Students booked for a talk\n4.00-5.30', ''],
+      ['@date:2026-10-29', 'Thursday', 'A', 'Nestle', '', 'Booked for PGDM II\n4.00-6.00 p.m.', 'Booked for Quiz\n1.30-2.30', '', '', ''],
+      ['', '', 'B', 'ITC', 'Booked for OM Sec E', '', '', '', '', ''],
+      ['', '', 'E', 'Colosseum', 'OM\n(Prof. D Das)\nVenue: Lab 1', 'OM\n(Prof. D Das)', 'CF\n(Prof. B Sen)', '', 'SM\n(Prof. E Paul)', ''],
+    ]);
+    g.merges.push({ r1: 3, c1: 0, r2: 5, c2: 0 }, { r1: 6, c1: 0, r2: 8, c2: 0 });
+    const res = parseTimetable([g], { section: 'E', today: TODAY });
+    expect(res.detection.ok).toBe(true);
+    expect(res.sessions.map((s) => [s.date, s.start, s.end, s.subject, s.room])).toEqual([
+      // DT borrows Section B's room; SM Sec B borrowing ours is not our class.
+      ['2026-10-28', '09:00', '10:30', 'DT', 'ITC'],
+      ['2026-10-28', '10:45', '12:15', 'TOD', 'Colosseum'],
+      ['2026-10-28', '14:05', '14:15', 'CF Quiz 1', 'Colosseum'],
+      // A cell's own time wins over its column's.
+      ['2026-10-28', '16:00', '17:30', 'Students booked for a talk', 'Colosseum'],
+      // Morning classes after rows of timed notes are still read; our own row wins over a booking elsewhere.
+      ['2026-10-29', '09:00', '10:30', 'OM', 'Lab 1'],
+      ['2026-10-29', '10:45', '12:15', 'OM', 'Colosseum'],
+      ['2026-10-29', '12:30', '14:00', 'CF', 'Colosseum'],
+      ['2026-10-29', '15:00', '16:30', 'SM', 'Colosseum'],
+    ]);
+  });
+
   it('slots across the top + a Section column', () => {
     const g = grid('Week 3', [
       ['PGDM 2026-28 — Term II Timetable'],

@@ -11,7 +11,7 @@ import { WEEKDAYS, weekdayOf, todayISO } from '../time';
  * the UI falls back to rendering the official sheet as-is, rather than guessing.
  */
 
-export const PARSER_VERSION = 3;
+export const PARSER_VERSION = 4;
 
 export type SessionStatus = 'scheduled' | 'cancelled' | 'rescheduled' | 'extra' | 'exam';
 
@@ -215,6 +215,11 @@ export function describeCell(text: string): Pick<Session, 'subject' | 'faculty' 
   return { subject, faculty, room };
 }
 
+/** The room a cell names, else the room of the row it sits in (a "Venue" column). */
+function withRoom<T extends { room: string | null }>(described: T, roomHint: string | null): T {
+  return described.room || !roomHint ? described : { ...described, room: roomHint };
+}
+
 /**
  * When one cell lists several sections ("SM – Sec E / CF – Sec F"), keep only our section's part.
  * Returns null when the cell names other sections but not ours.
@@ -248,11 +253,30 @@ interface SlotAxisItem {
   label: string;
 }
 
+/**
+ * A slot heading is a time plus, at most, slot words ("9:00 - 10:30", "Session 1\n10:45-12:15",
+ * "Lunch 1:15-2:00"). A note with a time in it ("Booked for PGDM HRM 2.30-4.00", "CF Quiz 1
+ * 2.05-2.15") is a class cell: such notes must not turn their row or column into a new header.
+ */
+const HEADING_WORDS_RE =
+  /\b(?:session|slot|period|lecture|class|lunch|break|tea|recess|hrs?|hours?|noon|a\.?m|p\.?m|no|i{1,3}|iv|vi{0,3}|ix|x|st|nd|rd|th)\b/gi;
+
 function slotFromCell(cell: GridCell | null): { start: string | null; end: string | null } | null {
   if (!cell) return null;
   if (cell.t === 'time' && typeof cell.v === 'string') return { start: cell.v, end: null };
   if (cell.t !== 's') return null;
-  return parseTimeRange(cell.text);
+  const range = parseTimeRange(cell.text);
+  if (!range) return null;
+  const rest = cell.text.replace(TIME_RANGE_RE, ' ').replace(HEADING_WORDS_RE, ' ').replace(/[^A-Za-z]/g, '');
+  return rest.length === 0 ? range : null;
+}
+
+/** "Booked for SM Sec B": the room in this row lent to a section's class for that slot. */
+const BOOKED_FOR_RE = /\bbooked\s+for\s+(.+?)\s+sec(?:tion)?\.?\s*[-:]?\s*([A-J])\b/i;
+
+export function bookingFor(text: string): { what: string; section: string } | null {
+  const m = BOOKED_FOR_RE.exec(text);
+  return m ? { what: m[1]!.trim(), section: m[2]!.toUpperCase() } : null;
 }
 
 function fillEnds(items: SlotAxisItem[]) {
@@ -319,7 +343,11 @@ function parseSheet(grid: Grid, section: string, today: string, sheetIsOurs: boo
   const sessions: Session[] = [];
   let explicit = 0;
   const emitted = new Set<string>();
-  const push = (s: Omit<Session, 'id' | 'key' | 'subject' | 'faculty' | 'room' | 'status'>, cell: GridCell | null) => {
+  const push = (
+    s: Omit<Session, 'id' | 'key' | 'subject' | 'faculty' | 'room' | 'status'>,
+    cell: GridCell | null,
+    roomHint: string | null = null,
+  ) => {
     const text = s.text.trim();
     if (!text || NOISE_RE.test(text) || BREAK_RE.test(text)) return;
     const dedupe = `${s.date ?? s.day}|${s.cell}`;
@@ -334,7 +362,7 @@ function parseSheet(grid: Grid, section: string, today: string, sheetIsOurs: boo
       id: `${grid.name}!${s.cell}@${s.date ?? s.day ?? ''}`,
       key: `${s.date ?? day ?? '?'}|${s.start ?? s.slotLabel}`,
       status: classify(text, Boolean(cell?.style?.strike)),
-      ...describeCell(text),
+      ...withRoom(describeCell(text), roomHint),
     });
   };
 
@@ -367,6 +395,17 @@ function parseSheet(grid: Grid, section: string, today: string, sheetIsOurs: boo
       }
     }
     if (sectionCol >= 0) sectionMode = 'column';
+
+    const elsewhere: { session: Parameters<typeof push>[0]; cell: GridCell | null; room: string | null }[] = [];
+
+    // A "Venue" / "Room" column beside it: the room each row's classes are held in.
+    let venueCol = -1;
+    const headerTop = Math.max(0, acrossHeaders[0]!.row - 2);
+    for (const j of contextCols) {
+      for (let i = headerTop; i <= acrossHeaders[0]!.row && venueCol < 0; i++) {
+        if (/^(?:venue|room|class\s*room|hall|location)s?$/i.test(r.text(i, j).trim())) venueCol = j;
+      }
+    }
 
     for (const [h, header] of acrossHeaders.entries()) {
       const endRow = acrossHeaders[h + 1]?.row ?? rows;
@@ -421,7 +460,23 @@ function parseSheet(grid: Grid, section: string, today: string, sheetIsOurs: boo
           }
           continue;
         }
-        if (sectionCol >= 0 && rowSection && rowSection !== section) continue;
+        const venue = venueCol >= 0 ? r.text(i, venueCol).split('\n')[0]!.trim() || null : null;
+        if (sectionCol >= 0 && rowSection && rowSection !== section) {
+          // Another section's room — but it may be booked for one of our classes ("Booked for DT Sec E").
+          for (const [k, it] of header.items.entries()) {
+            const [mr, mc] = r.master(i, it.index);
+            if (mc !== it.index && mr === i) continue;
+            const booking = bookingFor(r.text(i, it.index));
+            if (!booking || booking.section !== section) continue;
+            // Kept aside: our own row may list the same class with its venue, and that row wins.
+            elsewhere.push({
+              session: { date, day, start: it.start, end: it.end, slotLabel: it.label || `Slot ${k + 1}`, text: booking.what, sheet: grid.name, cell: addr(mr, mc) },
+              cell: r.get(i, it.index),
+              room: venue,
+            });
+          }
+          continue;
+        }
         if (sectionCol < 0 && blockSection && blockSection !== section) continue;
         if (sectionCol < 0 && blockSection === section && sectionMode === 'none') sectionMode = 'block';
 
@@ -432,6 +487,10 @@ function parseSheet(grid: Grid, section: string, today: string, sheetIsOurs: boo
           }
           let text = r.text(i, it.index);
           if (!text) continue;
+          const booking = bookingFor(text);
+          // Our room lent to another section for this slot: not our class.
+          if (booking && booking.section !== section && (rowSection === section || sectionCol < 0)) continue;
+          if (booking && booking.section === section) text = booking.what;
           if (sectionCol >= 0 && !rowSection) {
             const part = sectionPart(text, section);
             if (!part || part === text) continue;
@@ -453,21 +512,28 @@ function parseSheet(grid: Grid, section: string, today: string, sheetIsOurs: boo
             const last = [...header.items].reverse().find((x) => x.index <= merge.c2);
             if (last?.end) end = last.end;
           }
+          // A cell that states its own time ("Booked for Internalization 4.00-5.30") is more exact than its column.
+          const own = parseTimeRange(text);
           push(
             {
               date,
               day,
-              start: it.start,
-              end,
+              start: own?.start ?? it.start,
+              end: own?.end ?? end,
               slotLabel: it.label || `Slot ${k + 1}`,
               text,
               sheet: grid.name,
               cell: addr(mr, mc),
             },
             r.get(i, it.index),
+            venue,
           );
         }
       }
+    }
+    for (const e of elsewhere) {
+      const taken = sessions.some((x) => (x.date ?? x.day) === (e.session.date ?? e.session.day) && x.start === e.session.start);
+      if (!taken) push(e.session, e.cell, e.room);
     }
     return { sessions, explicit, orientation: 'slots-across', sectionMode, mentionsOtherSections, dated };
   }
