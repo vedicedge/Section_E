@@ -85,11 +85,12 @@ export async function addStudent(rollInput: string, nameInput: string) {
   return roll;
 }
 
-/** Clears the PIN and signs the student out on every device (session_version bump). */
+/** Clears the PIN and signs the student out on every device (session_version bump); their calendar link stops working. */
 export async function resetStudent(roll: string) {
   await removeAllSubscriptions(roll);
   await query(
-    `UPDATE students SET pin_hash = NULL, claimed_at = NULL, session_version = session_version + 1, updated_at = now() WHERE roll_no = $1`,
+    `UPDATE students SET pin_hash = NULL, claimed_at = NULL, session_version = session_version + 1,
+       calendar_version = calendar_version + 1, calendar_token_hash = NULL, updated_at = now() WHERE roll_no = $1`,
     [roll],
   );
 }

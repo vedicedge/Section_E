@@ -7,6 +7,7 @@ import { activePlanSummaries, planStatus, seatsForStudent } from '@/lib/seating/
 import { getStudent } from '@/lib/session';
 import { formatDateTime, relativeTime, todayISO } from '@/lib/time';
 import { Hourglass, Pavilion } from '@/components/Engravings';
+import { CalendarLink } from '@/components/CalendarLink';
 import { RefreshButton } from './RefreshButton';
 import { TimetableView, type TimetableSession } from './TimetableView';
 import styles from './timetable.module.css';
@@ -248,6 +249,7 @@ async function TimetableBody() {
         showSeats={Boolean(student)}
         fileName={state.fileName}
       />
+      {student && <CalendarLink />}
     </>
   );
 }

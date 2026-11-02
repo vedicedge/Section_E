@@ -7,6 +7,7 @@ import { nextSession, upcomingSchedule } from '@/lib/schedule';
 import { firstName } from '@/lib/names';
 import { formatClock, formatDay, todayISO } from '@/lib/time';
 import { Pavilion } from '@/components/Engravings';
+import { CalendarLink } from '@/components/CalendarLink';
 import { SeatViewer } from './SeatViewer';
 import styles from './seat.module.css';
 
@@ -74,6 +75,7 @@ export default async function SeatPage({ searchParams }: { searchParams: Promise
       ) : (
         <SeatViewer seats={visible} initialPlanId={initial} studentName={student.name} />
       )}
+      <CalendarLink />
     </div>
   );
 }

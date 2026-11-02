@@ -52,6 +52,17 @@ export async function readJson<T>(req: Request, schema: ZodType<T>): Promise<T> 
   return schema.parse(body);
 }
 
+/** The site's public address: NEXT_PUBLIC_SITE_URL, else the host the request came to. */
+export function siteOrigin(req: Request): string {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (configured) return configured.replace(/\/+$/, '');
+  const host = (req.headers.get('x-forwarded-host') ?? req.headers.get('host'))?.split(',')[0]?.trim();
+  if (!host) return new URL(req.url).origin;
+  const local = /^(localhost|127\.|\[::1\])/.test(host);
+  const proto = req.headers.get('x-forwarded-proto')?.split(',')[0]?.trim() || (local ? 'http' : 'https');
+  return `${proto}://${host}`;
+}
+
 export function clientIp(req: Request): string {
   const fwd = req.headers.get('x-forwarded-for');
   if (fwd) return fwd.split(',')[0]!.trim();

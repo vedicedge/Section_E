@@ -398,4 +398,29 @@ test.describe.serial('Section E', () => {
     const on = await page.request.put('/api/admin/attendance', { data: settings(true, 14, updatedAt) });
     expect(on.status()).toBe(200);
   });
+
+  test('calendar link: classes with seats for the phone calendar, private to the student', async ({ page, request }) => {
+    await signIn(page, '26PGDM902', '2468');
+    await page.goto('/seat');
+    await page.getByRole('button', { name: 'Get my calendar link' }).click();
+    const field = page.getByLabel('Your calendar link');
+    await expect(field).toHaveValue(/\/api\/calendar\/[A-Za-z0-9_-]{32}\.ics$/);
+    const url = await field.inputValue();
+    await expect(page.getByRole('link', { name: 'Add to iPhone Calendar' })).toHaveAttribute('href', /^webcal:\/\//);
+
+    const res = await request.get(url);
+    expect(res.status()).toBe(200);
+    expect(res.headers()['content-type']).toContain('text/calendar');
+    const ics = await res.text();
+    expect(ics).toContain('BEGIN:VCALENDAR');
+    expect(ics).toMatch(/LOCATION:Row \d+\\, Seat \d+/);
+    expect(ics).not.toContain('26PGDM');
+
+    // A new link retires the old one.
+    await page.getByRole('button', { name: 'Shared it by mistake? Make a new link' }).click();
+    await page.getByRole('button', { name: 'Make a new link', exact: true }).click();
+    await expect(field).not.toHaveValue(url);
+    expect((await request.get(url)).status()).toBe(404);
+    expect((await request.get(`/api/calendar/${'x'.repeat(32)}.ics`)).status()).toBe(404);
+  });
 });

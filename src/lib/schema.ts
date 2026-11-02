@@ -169,4 +169,11 @@ export const MIGRATIONS: string[] = [
     PRIMARY KEY (roll_no, subject_id)
   );
   `,
+
+  // 4 — a private calendar link per student (only its hash is kept; the version bump retires a link).
+  `
+  ALTER TABLE students ADD COLUMN calendar_version INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE students ADD COLUMN calendar_token_hash TEXT;
+  CREATE UNIQUE INDEX students_calendar_token_idx ON students (calendar_token_hash);
+  `,
 ];

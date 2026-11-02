@@ -16,8 +16,8 @@ export function sessionsOn(sessions: Session[], date: string): Session[] {
   return sessions.filter((s) => (dated ? s.date === date : s.day === weekdayOf(date)));
 }
 
-function pickPlan(session: Session, plans: PlanRecord[], date: string): PlanRecord | null {
-  // Prefer exam plans that are valid on the day for exam sessions, otherwise class plans.
+/** The seating plan a session belongs to on `date`: an exam plan for exams, else its class plan. */
+export function pickPlan(session: Session, plans: PlanRecord[], date: string): PlanRecord | null {
   const valid = plans.filter((p) => planStatus(p, date) === 'current');
   const exam = session.status === 'exam' ? matchSubject(session.text, valid.filter((p) => p.kind === 'exam')) : null;
   return exam ?? matchSubject(session.text, valid.filter((p) => p.kind === 'class')) ?? matchSubject(session.text, valid);
