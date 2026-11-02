@@ -52,10 +52,15 @@ export async function readJson<T>(req: Request, schema: ZodType<T>): Promise<T> 
   return schema.parse(body);
 }
 
-/** The site's public address: NEXT_PUBLIC_SITE_URL, else the host the request came to. */
+/**
+ * The site's public address: NEXT_PUBLIC_SITE_URL, else the production domain Vercel provides
+ * (so links never point at a one-off preview address), else the host the request came to.
+ */
 export function siteOrigin(req: Request): string {
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (configured) return configured.replace(/\/+$/, '');
+  const production = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+  if (production) return `https://${production.replace(/^https?:\/\//, '').replace(/\/+$/, '')}`;
   const host = (req.headers.get('x-forwarded-host') ?? req.headers.get('host'))?.split(',')[0]?.trim();
   if (!host) return new URL(req.url).origin;
   const local = /^(localhost|127\.|\[::1\])/.test(host);
