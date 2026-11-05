@@ -176,4 +176,27 @@ export const MIGRATIONS: string[] = [
   ALTER TABLE students ADD COLUMN calendar_token_hash TEXT;
   CREATE UNIQUE INDEX students_calendar_token_idx ON students (calendar_token_hash);
   `,
+
+  // 5 — deadlines spotted in faculty emails, waiting for the admin to add or dismiss them.
+  //     Only the deadline sentences are kept, never the whole email. message_id stops repeats.
+  `
+  CREATE TABLE homework_suggestions (
+    id            TEXT PRIMARY KEY,
+    message_id    TEXT NOT NULL UNIQUE,
+    thread_url    TEXT,
+    sender_name   TEXT NOT NULL DEFAULT '',
+    sender_email  TEXT NOT NULL,
+    email_subject TEXT NOT NULL DEFAULT '',
+    received_at   TIMESTAMPTZ NOT NULL,
+    excerpt       TEXT NOT NULL,
+    title         TEXT NOT NULL,
+    due_mode      TEXT CHECK (due_mode IN ('next_class', 'date')),
+    due_date      DATE,
+    status        TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'added', 'dismissed')),
+    homework_id   TEXT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    decided_at    TIMESTAMPTZ
+  );
+  CREATE INDEX homework_suggestions_status_idx ON homework_suggestions (status, received_at);
+  `,
 ];
