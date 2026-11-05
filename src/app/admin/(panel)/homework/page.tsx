@@ -3,6 +3,8 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { env } from '@/lib/env';
 import { isClassHappening, nextClassOf, type DueContext } from '@/lib/homework/due';
+import { guessSubject } from '@/lib/homework/email';
+import { inboxStatus, pendingSuggestions } from '@/lib/homework/inbox';
 import { whatsappText } from '@/lib/homework/messages';
 import { homeworkDueOn, homeworkForAdmin, homeworkSubjects, loadDueContext, type SubjectOption } from '@/lib/homework/repo';
 import { subjectKey } from '@/lib/names';
@@ -14,6 +16,7 @@ import { addDays, formatDateTime, todayISO, toMinutes, weekdayOf } from '@/lib/t
 import { HomeworkBoard } from './HomeworkBoard';
 import { HomeworkTable } from './HomeworkTable';
 import { ReminderPanel } from './ReminderPanel';
+import { SuggestionQueue } from './SuggestionQueue';
 import type { BoardSubject } from './shared';
 import styles from '../../admin.module.css';
 
@@ -67,7 +70,7 @@ export default async function AdminHomework({ searchParams }: Props) {
   const givenOn = pickDate((await searchParams).date, today);
   const tomorrow = addDays(today, 1);
 
-  const [subjects, ctx, items, roster, stats, last, dueTomorrow, url] = await Promise.all([
+  const [subjects, ctx, items, roster, stats, last, dueTomorrow, url, pending, inbox] = await Promise.all([
     homeworkSubjects(),
     loadDueContext(),
     homeworkForAdmin(),
@@ -76,9 +79,12 @@ export default async function AdminHomework({ searchParams }: Props) {
     lastReminder(),
     homeworkDueOn(tomorrow),
     siteUrl(),
+    pendingSuggestions(),
+    inboxStatus(),
   ]);
   const open = items.filter((i) => i.bucket !== 'past').length;
   const configured = pushConfigured();
+  const suggestions = pending.map((s) => ({ ...s, guess: guessSubject(s, subjects, ctx)?.code ?? null }));
 
   return (
     <div className={styles.stack}>
@@ -94,6 +100,8 @@ export default async function AdminHomework({ searchParams }: Props) {
           </p>
         </div>
       </header>
+
+      <SuggestionQueue suggestions={suggestions} subjects={subjects} inbox={inbox} pushReady={configured} now={Date.now()} />
 
       <HomeworkBoard
         givenOn={givenOn}
