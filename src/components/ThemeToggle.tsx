@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
+import { useEffect, useState } from 'react';
 import styles from './ThemeToggle.module.css';
 
 type Theme = 'dark' | 'light';
@@ -19,14 +18,12 @@ function current(): Theme {
 }
 
 /**
- * Dark / light switch. The new theme spreads out from the button in a circle where the browser
- * supports View Transitions, and colours glide everywhere else. The choice is remembered on this
- * device and follows along in any other open Section E tab.
+ * Dark / light switch. The page changes instantly (no page-wide fade, which glitched on some
+ * phones); the icon turns as feedback. The choice is remembered on this device and follows along
+ * in any other open Section E tab.
  */
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>('dark');
-  /** True while a reveal is running; a second tap waits for it rather than tearing it. */
-  const busy = useRef(false);
 
   useEffect(() => {
     setTheme(current());
@@ -52,8 +49,7 @@ export function ThemeToggle() {
     };
   }, []);
 
-  function toggle(e: React.MouseEvent<HTMLButtonElement>) {
-    if (busy.current) return;
+  function toggle() {
     const next: Theme = current() === 'dark' ? 'light' : 'dark';
     try {
       localStorage.setItem(KEY, next);
@@ -67,49 +63,13 @@ export function ThemeToggle() {
     } catch {
       /* older browsers: the storage event covers other tabs */
     }
+    // Switch instantly and all at once: nothing else animates while the colours change, so there
+    // is no half-faded moment. Only the sun/moon icon turns, as feedback.
     const root = document.documentElement;
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const doc = document as Document & {
-      startViewTransition?: (cb: () => void) => { ready: Promise<void>; finished: Promise<void> };
-    };
-    if (doc.startViewTransition && !reduce) {
-      busy.current = true;
-      const r = e.currentTarget.getBoundingClientRect();
-      const x = r.left + r.width / 2;
-      const y = r.top + r.height / 2;
-      const end = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
-      const vt = doc.startViewTransition(() => {
-        // The circle reveals a snapshot of the new theme, so every colour must already be final:
-        // with hover/press transitions still running, buttons and cards would show their old
-        // colours inside the circle and then flash to the new ones (the glitch).
-        root.setAttribute('data-theme-instant', '');
-        apply(next);
-        flushSync(() => setTheme(next));
-      });
-      vt.ready
-        .then(() => {
-          root.animate(
-            { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${end}px at ${x}px ${y}px)`] },
-            { duration: 700, easing: 'cubic-bezier(.4,0,.2,1)', pseudoElement: '::view-transition-new(root)' },
-          );
-        })
-        .catch(() => {});
-      vt.finished
-        .catch(() => {})
-        .finally(() => {
-          root.removeAttribute('data-theme-instant');
-          busy.current = false;
-        });
-      return;
-    }
-    // No View Transitions (older Safari, Firefox): every colour glides together instead.
-    root.setAttribute('data-theme-switching', '');
-    // Let the transition rule land before the colours change, so nothing snaps.
-    requestAnimationFrame(() => {
-      apply(next);
-      setTheme(next);
-      window.setTimeout(() => root.removeAttribute('data-theme-switching'), 750);
-    });
+    root.setAttribute('data-theme-instant', '');
+    apply(next);
+    setTheme(next);
+    requestAnimationFrame(() => requestAnimationFrame(() => root.removeAttribute('data-theme-instant')));
   }
 
   return (
@@ -123,7 +83,7 @@ export function ThemeToggle() {
       data-theme-now={theme}
     >
       <span className={styles.knob} aria-hidden>
-        <svg className={styles.sun} width="16" height="16" viewBox="0 0 24 24">
+        <svg className={styles.sun} data-theme-icon width="16" height="16" viewBox="0 0 24 24">
           <circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" strokeWidth="2" />
           <path
             d="M12 2v2.5M12 19.5V22M4.2 4.2 6 6M18 18l1.8 1.8M2 12h2.5M19.5 12H22M4.2 19.8 6 18M18 6l1.8-1.8"
@@ -133,7 +93,7 @@ export function ThemeToggle() {
             strokeLinecap="round"
           />
         </svg>
-        <svg className={styles.moon} width="16" height="16" viewBox="0 0 24 24">
+        <svg className={styles.moon} data-theme-icon width="16" height="16" viewBox="0 0 24 24">
           <path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
         </svg>
       </span>
