@@ -33,6 +33,7 @@
   --on-accent: #110c0a;
   --hl: rgb(240 54 15 / 0.28);
   --heart-off: #5a4c43;
+  --seat: #4a3e36;
   --bar: rgb(17 12 10 / 0.78);
   --bar-line: rgb(242 233 223 / 0.1);
   --ok: #7fc48d;
@@ -80,6 +81,7 @@
   --accent-ring: rgb(224 51 12 / 0.45);
   --hl: #f8d5c8;
   --heart-off: #bfb0a2;
+  --seat: #d9cdbf;
   --bar: rgb(243 236 226 / 0.8);
   --bar-line: rgb(26 19 16 / 0.1);
   --ok: #2f6b3c;
@@ -99,6 +101,12 @@
     border-color 0.6s cubic-bezier(0.4, 0, 0.2, 1),
     fill 0.6s cubic-bezier(0.4, 0, 0.2, 1),
     stroke 0.6s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+/* During the circular reveal every colour is final at once (see ThemeToggle). */
+:root[data-theme-instant] *,
+:root[data-theme-instant] *::before,
+:root[data-theme-instant] *::after {
+  transition: none !important;
 }
 ::view-transition-old(root),
 ::view-transition-new(root) {

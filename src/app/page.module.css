@@ -176,7 +176,7 @@
   gap: 7px;
   padding: 18px;
   border-radius: 18px;
-  background: var(--mist);
+  background: var(--paper);
 }
 .roomRow {
   display: flex;
@@ -186,7 +186,7 @@
   width: 16px;
   height: 14px;
   border-radius: 4px;
-  background: var(--line);
+  background: var(--seat);
 }
 .roomAisle {
   margin-right: 12px;

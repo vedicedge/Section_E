@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import styles from './ThemeToggle.module.css';
 
 type Theme = 'dark' | 'light';
@@ -24,6 +25,8 @@ function current(): Theme {
  */
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>('dark');
+  /** True while a reveal is running; a second tap waits for it rather than tearing it. */
+  const busy = useRef(false);
 
   useEffect(() => {
     setTheme(current());
@@ -50,6 +53,7 @@ export function ThemeToggle() {
   }, []);
 
   function toggle(e: React.MouseEvent<HTMLButtonElement>) {
+    if (busy.current) return;
     const next: Theme = current() === 'dark' ? 'light' : 'dark';
     try {
       localStorage.setItem(KEY, next);
@@ -65,30 +69,47 @@ export function ThemeToggle() {
     }
     const root = document.documentElement;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const doc = document as Document & { startViewTransition?: (cb: () => void) => { ready: Promise<void> } };
+    const doc = document as Document & {
+      startViewTransition?: (cb: () => void) => { ready: Promise<void>; finished: Promise<void> };
+    };
     if (doc.startViewTransition && !reduce) {
+      busy.current = true;
       const r = e.currentTarget.getBoundingClientRect();
       const x = r.left + r.width / 2;
       const y = r.top + r.height / 2;
       const end = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
       const vt = doc.startViewTransition(() => {
+        // The circle reveals a snapshot of the new theme, so every colour must already be final:
+        // with hover/press transitions still running, buttons and cards would show their old
+        // colours inside the circle and then flash to the new ones (the glitch).
+        root.setAttribute('data-theme-instant', '');
         apply(next);
-        setTheme(next);
+        flushSync(() => setTheme(next));
       });
       vt.ready
         .then(() => {
           root.animate(
             { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${end}px at ${x}px ${y}px)`] },
-            { duration: 650, easing: 'cubic-bezier(.4,0,.2,1)', pseudoElement: '::view-transition-new(root)' },
+            { duration: 700, easing: 'cubic-bezier(.4,0,.2,1)', pseudoElement: '::view-transition-new(root)' },
           );
         })
         .catch(() => {});
+      vt.finished
+        .catch(() => {})
+        .finally(() => {
+          root.removeAttribute('data-theme-instant');
+          busy.current = false;
+        });
       return;
     }
+    // No View Transitions (older Safari, Firefox): every colour glides together instead.
     root.setAttribute('data-theme-switching', '');
-    apply(next);
-    setTheme(next);
-    window.setTimeout(() => root.removeAttribute('data-theme-switching'), 700);
+    // Let the transition rule land before the colours change, so nothing snaps.
+    requestAnimationFrame(() => {
+      apply(next);
+      setTheme(next);
+      window.setTimeout(() => root.removeAttribute('data-theme-switching'), 750);
+    });
   }
 
   return (
