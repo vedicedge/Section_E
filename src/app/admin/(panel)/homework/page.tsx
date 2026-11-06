@@ -111,7 +111,7 @@ export default async function AdminHomework({ searchParams }: Props) {
         pushReady={configured}
       />
 
-      <HomeworkTable items={items} roster={roster} today={today} subjects={subjects} />
+      <HomeworkTable items={items} roster={roster} today={today} subjects={subjects} pushReady={configured} />
 
       <ReminderPanel
         configured={configured}
