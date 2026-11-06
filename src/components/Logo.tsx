@@ -3,9 +3,11 @@ import styles from './Logo.module.css';
 
 export function Logo({ className }: { className?: string }) {
   return (
-    <Link href="/" className={`${styles.logo} ${className ?? ''}`} aria-label="Section E — home">
-      <span className={styles.word}>Section</span>
-      <span className={styles.letter}>E</span>
+    <Link href="/" className={`${styles.logo} ${className ?? ''}`} aria-label="Section E home">
+      <span className={styles.tile} aria-hidden>
+        E
+      </span>
+      <span className={styles.word}>Section E</span>
     </Link>
   );
 }

@@ -1,0 +1,54 @@
+.toggle {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+}
+.knob {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--mist);
+  display: grid;
+  place-items: center;
+  transition:
+    transform 0.55s var(--spring),
+    box-shadow 0.55s var(--ease),
+    background-color 0.5s ease;
+}
+.sun,
+.moon {
+  position: absolute;
+  transition:
+    transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.35s ease;
+}
+/* Dark shows the moon, light shows the sun. */
+.sun {
+  opacity: 0;
+  transform: rotate(90deg) scale(0.5);
+}
+.toggle[data-theme-now='light'] .sun {
+  opacity: 1;
+  transform: none;
+}
+.toggle[data-theme-now='light'] .moon {
+  opacity: 0;
+  transform: rotate(-90deg) scale(0.5);
+}
+@media (hover: hover) {
+  .toggle:hover .knob {
+    transform: scale(1.06);
+    box-shadow: 0 8px 18px -8px rgb(0 0 0 / 0.45);
+  }
+}
+.toggle:active .knob {
+  transform: scale(0.88);
+  transition-duration: 0.14s;
+}

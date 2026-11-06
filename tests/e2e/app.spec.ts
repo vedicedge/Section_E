@@ -35,9 +35,9 @@ test.describe.serial('Section E', () => {
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Outside the building');
     const nav = page.getByRole('navigation', { name: 'Features' });
-    await expect(nav.getByRole('link', { name: /Seating/ })).toHaveAttribute('href', '/seat');
-    await expect(nav.getByRole('link', { name: /Live Timetable/ })).toHaveAttribute('href', '/timetable');
-    await expect(nav.getByRole('link', { name: /Mock/ })).toHaveAttribute('href', '/tests');
+    await expect(nav.getByRole('link', { name: /My seat/ })).toHaveAttribute('href', '/seat');
+    await expect(nav.getByRole('link', { name: /Live timetable/ })).toHaveAttribute('href', '/timetable');
+    await expect(nav.getByRole('link', { name: /mock tests/i })).toHaveAttribute('href', '/tests');
     await expect(nav.getByRole('link', { name: /Homework/ })).toHaveAttribute('href', '/homework');
     await expect(nav.getByRole('link', { name: /Attendance/ })).toHaveAttribute('href', '/attendance');
   });
@@ -281,10 +281,11 @@ test.describe.serial('Section E', () => {
     await page.goto('/timetable');
     await expect(page.getByText(/switched off/i).first()).toBeVisible();
     await page.goto('/');
-    await expect(page.getByRole('navigation', { name: 'Features' }).getByRole('link', { name: /Live Timetable/ })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Open menu' }).click();
-    await expect(page.getByRole('dialog').getByRole('link', { name: /Homework/ })).toBeVisible();
-    await expect(page.getByRole('dialog').getByRole('link', { name: /Live Timetable/ })).toHaveCount(0);
+    await expect(page.getByRole('navigation', { name: 'Features' }).getByRole('link', { name: /Live timetable/i })).toHaveCount(0);
+    // The bar at the top lists the pages; a switched-off one is left out.
+    const bar = page.getByRole('navigation', { name: 'Main' });
+    await expect(bar.getByRole('link', { name: /Homework/ })).toBeVisible();
+    await expect(bar.getByRole('link', { name: /Timetable/ })).toHaveCount(0);
     expect((await page.request.put('/api/admin/timetable', { data: { enabled: true } })).status()).toBe(200);
   });
 
@@ -392,9 +393,10 @@ test.describe.serial('Section E', () => {
     await expect(page.getByText(/switched off/).first()).toBeVisible();
     await page.goto('/');
     await expect(page.getByRole('navigation', { name: 'Features' }).getByRole('link', { name: /Attendance/ })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Open menu' }).click();
-    await expect(page.getByRole('dialog').getByRole('link', { name: /Homework/ })).toBeVisible();
-    await expect(page.getByRole('dialog').getByRole('link', { name: /Attendance/ })).toHaveCount(0);
+    // The bar at the top lists the pages; a switched-off one is left out.
+    const bar = page.getByRole('navigation', { name: 'Main' });
+    await expect(bar.getByRole('link', { name: /Homework/ })).toBeVisible();
+    await expect(bar.getByRole('link', { name: /Attendance/ })).toHaveCount(0);
     const on = await page.request.put('/api/admin/attendance', { data: settings(true, 14, updatedAt) });
     expect(on.status()).toBe(200);
   });

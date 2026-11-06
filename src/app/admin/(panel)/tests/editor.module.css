@@ -22,7 +22,8 @@
 }
 .qNum {
   font-family: var(--serif);
-  font-style: italic;
+  font-weight: 650;
+  font-style: normal;
   font-size: 26px;
   color: var(--accent);
 }
@@ -71,8 +72,9 @@
   gap: 8px;
   cursor: pointer;
   font-family: var(--serif);
+  font-weight: 500;
   font-size: 18px;
-  font-style: italic;
+  font-style: normal;
 }
 .mark input {
   width: 18px;
