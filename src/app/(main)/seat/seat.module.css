@@ -58,8 +58,13 @@
 /* Subject picker: Apple-style segmented pills */
 .index {
   display: grid;
+  /* minmax(0, …) lets the pill row scroll inside the screen instead of widening the page */
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   margin-bottom: clamp(20px, 3vw, 28px);
+}
+.group {
+  min-width: 0;
 }
 .group :global(.eyebrow) {
   font-size: 13px;
@@ -135,6 +140,7 @@
 /* Detail */
 .viewer {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
 }
 .detail {
   display: grid;
@@ -145,6 +151,7 @@
   background: var(--card);
 }
 .info {
+  min-width: 0;
   display: grid;
   align-content: start;
   gap: 16px;
@@ -221,9 +228,9 @@
 .map {
   margin: 0;
   padding: clamp(16px, 2.4vw, 28px);
-  background: var(--mist);
+  background: var(--paper);
   border: 0;
-  border-radius: 10px;
+  border-radius: 18px;
   overflow-x: auto;
 }
 .mapRows {
@@ -238,11 +245,9 @@
   gap: 8px;
 }
 .mapRowLabel {
-  font-family: var(--serif);
-  font-weight: 500;
-  font-style: normal;
-  font-size: 18px;
-  color: var(--faint);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
   text-align: right;
 }
 .mapRowOn .mapRowLabel {
@@ -262,16 +267,15 @@
   display: grid;
   place-items: center;
   border: 0;
-  background: var(--line);
-  border-radius: 6px 6px 4px 4px;
+  background: var(--seat);
+  border-radius: 7px 7px 4px 4px;
   font-size: 10px;
-  color: var(--faint);
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
-  background: transparent;
 }
 .mapSeatVacant {
   background: transparent;
-  box-shadow: inset 0 0 0 1px var(--line);
+  box-shadow: inset 0 0 0 1.5px var(--seat);
   opacity: 0.7;
 }
 .mapSeatMine {
@@ -383,7 +387,30 @@
 
 @media (max-width: 900px) {
   .detail {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* Phones: the subject, row and seat sit centred, as on the prototype. */
+@media (max-width: 600px) {
+  .detail {
+    padding: 22px 16px;
+  }
+  .info {
+    justify-items: center;
+    text-align: center;
+  }
+  .numerals {
+    justify-content: center;
+  }
+  .numerals > div {
+    justify-items: center;
+  }
+  .facts {
+    width: 100%;
+    text-align: left;
+  }
+  .missing {
+    text-align: left;
   }
 }
 @media (max-width: 520px) {
