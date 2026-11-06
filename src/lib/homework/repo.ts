@@ -130,6 +130,13 @@ export async function recentHomework(days = 45): Promise<HomeworkRecord[]> {
   return rows.map(toRecord);
 }
 
+/** Posted homework by id, resolved against the timetable (ids that no longer exist are skipped). */
+export async function homeworkByIds(ids: string[]): Promise<HomeworkView[]> {
+  if (!ids.length) return [];
+  const [rows, ctx] = await Promise.all([query<HomeworkRow>(`SELECT * FROM homework WHERE id = ANY($1::text[])`, [ids]), loadDueContext()]);
+  return resolveAll(rows.map(toRecord), ctx);
+}
+
 export async function getHomework(id: string): Promise<HomeworkRecord | null> {
   const row = await queryOne<HomeworkRow>('SELECT * FROM homework WHERE id = $1', [id]);
   return row ? toRecord(row) : null;

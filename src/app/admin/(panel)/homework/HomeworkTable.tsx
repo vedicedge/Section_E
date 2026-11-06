@@ -26,14 +26,23 @@ interface Props {
   roster: number;
   today: string;
   subjects: SubjectOption[];
+  /** Push notifications are configured, so posted homework can be announced. */
+  pushReady: boolean;
 }
 
-export function HomeworkTable({ items, roster, today, subjects }: Props) {
+interface NotifyResult {
+  items: number;
+  notified: { sent: number } | null;
+  alreadySent: boolean;
+}
+
+export function HomeworkTable({ items, roster, today, subjects, pushReady }: Props) {
   const router = useRouter();
   const uid = useId();
   const [tab, setTab] = useState<Tab>('upcoming');
   const [editing, setEditing] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [notifying, setNotifying] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>(null);
 
   const upcoming = items.filter((i) => i.bucket !== 'past');
@@ -53,6 +62,21 @@ export function HomeworkTable({ items, roster, today, subjects }: Props) {
     setBusy(null);
     setStatus(res.ok ? { kind: 'ok', text: `Deleted “${preview(item.title, 60)}”.` } : { kind: 'error', text: res.error });
     if (res.ok) router.refresh();
+  }
+
+  async function notify(item: AdminHomeworkItem) {
+    if (!confirm(`Send a “new homework” alert about “${preview(item.title, 80)}” (${item.subjectCode}) to every student with notifications on?`)) return;
+    setNotifying(item.id);
+    const res = await api<NotifyResult>('/api/admin/homework/notify', { ids: [item.id] });
+    setNotifying(null);
+    if (!res.ok) return setStatus({ kind: 'error', text: res.error });
+    const name = `“${preview(item.title, 60)}”`;
+    if (res.data.alreadySent) return setStatus({ kind: 'ok', text: `Students were already alerted about ${name}.` });
+    const sent = res.data.notified?.sent ?? 0;
+    setStatus({
+      kind: 'ok',
+      text: sent ? `Sent an alert about ${name} to ${sent} device${sent === 1 ? '' : 's'}.` : `No devices have notifications on yet, so no alert went out for ${name}.`,
+    });
   }
 
   return (
@@ -168,6 +192,17 @@ export function HomeworkTable({ items, roster, today, subjects }: Props) {
                         >
                           Edit
                         </button>
+                        {pushReady && tab === 'upcoming' && (
+                          <button
+                            type="button"
+                            className={`btn btn--ghost btn--sm ${css.tap}`}
+                            disabled={busy === item.id || notifying !== null}
+                            aria-label={`Notify students about ${item.subjectCode}: ${preview(item.title, 60)}`}
+                            onClick={() => notify(item)}
+                          >
+                            {notifying === item.id ? 'Sending…' : 'Notify'}
+                          </button>
+                        )}
                         <button
                           type="button"
                           className={`btn btn--danger btn--sm ${css.tap}`}
