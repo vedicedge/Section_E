@@ -5,8 +5,12 @@ import { isAttendanceEnabled } from '@/lib/attendance/repo';
 import { pendingDueCount } from '@/lib/homework/repo';
 import { isTimetableEnabled } from '@/lib/timetable/service';
 import { addDays, todayISO } from '@/lib/time';
+import { initials } from '@/lib/names';
 import { Logo } from './Logo';
 import { MenuButton } from './Menu';
+import { NavLinks } from './NavLinks';
+import { ThemeToggle } from './ThemeToggle';
+import { navLinks } from './nav';
 import styles from './SiteHeader.module.css';
 
 /** The timetable switch, read once per request (the header, footer and landing page all ask). */
@@ -24,36 +28,30 @@ async function dueTomorrowFor(rollNo: string): Promise<number> {
   }
 }
 
-/** Header shared by every student page: "+" menu · script logotype · identity link. */
-export async function SiteHeader({ tone = 'paper' }: { tone?: 'paper' | 'red' }) {
+/** The translucent bar on every student page: logo · page links · theme · account (menu on phones). */
+export async function SiteHeader() {
   const [student, timetable, attendance] = await Promise.all([getStudent(), timetableEnabled(), attendanceEnabled()]);
   const dueTomorrow = student ? await dueTomorrowFor(student.rollNo) : 0;
+  const links = navLinks(timetable, attendance);
   return (
-    <header className={`${styles.header} ${tone === 'red' ? styles.red : ''}`}>
-      <div className={`container ${styles.inner}`}>
-        <div className={styles.left}>
-          <MenuButton
-            student={student ? { rollNo: student.rollNo, name: student.name } : null}
-            timetable={timetable}
-            attendance={attendance}
-            dueTomorrow={dueTomorrow}
-            tone={tone}
-          />
-        </div>
-        <Logo className={styles.logo} />
+    <header className={styles.header}>
+      <nav className={styles.inner} aria-label="Main">
+        <Logo />
+        <NavLinks links={links} dueTomorrow={dueTomorrow} />
         <div className={styles.right}>
+          <ThemeToggle />
           {student ? (
-            <Link href="/seat" className={styles.cta} title={`Signed in as ${student.name}`}>
-              <span className={styles.ctaLong}>{student.rollNo}</span>
-              <span className={styles.ctaShort}>My seat</span>
+            <Link href="/register?next=/" className={styles.avatar} aria-label={`Your account, ${student.name}`} title={`${student.name} · ${student.rollNo}`}>
+              {initials(student.name)}
             </Link>
           ) : (
-            <Link href="/register" className={styles.cta}>
+            <Link href="/register" className={`btn btn--accent btn--sm ${styles.register}`}>
               Register
             </Link>
           )}
+          <MenuButton student={student ? { rollNo: student.rollNo, name: student.name } : null} links={links} dueTomorrow={dueTomorrow} />
         </div>
-      </div>
+      </nav>
     </header>
   );
 }

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import type { MySeat } from '@/lib/seating/repo';
 import { formatDay } from '@/lib/time';
 import { initials } from '@/lib/names';
+import { RollingNumber } from '@/components/RollingNumber';
 import { SeatMap } from './SeatMap';
 import styles from './seat.module.css';
 
@@ -82,11 +83,11 @@ export function SeatViewer({ seats, initialPlanId, studentName }: { seats: MySea
               <div className={styles.numerals}>
                 <div>
                   <span className={styles.numLabel}>Row</span>
-                  <span className={`${styles.num} tabular`}>{seat.rowNumber ?? seat.rowIndex + 1}</span>
+                  <RollingNumber className={`${styles.num} tabular`} value={seat.rowNumber ?? seat.rowIndex + 1} />
                 </div>
                 <div>
                   <span className={styles.numLabel}>Seat</span>
-                  <span className={`${styles.num} tabular`}>{String(seat.seatNumber).padStart(2, '0')}</span>
+                  <RollingNumber className={`${styles.num} ${styles.numSeat} tabular`} value={seat.seatNumber} />
                 </div>
               </div>
               <dl className={styles.facts}>

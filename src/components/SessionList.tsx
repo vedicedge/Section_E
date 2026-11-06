@@ -40,7 +40,7 @@ export function SessionList({ sessions, showSeats = true }: { sessions: SessionV
               {s.start ? (
                 <>
                   <span>{formatClock(s.start)}</span>
-                  {s.end && <span className={styles.end}>– {formatClock(s.end)}</span>}
+                  {s.end && <span className={styles.end}>to {formatClock(s.end)}</span>}
                 </>
               ) : (
                 <span>{s.slotLabel}</span>

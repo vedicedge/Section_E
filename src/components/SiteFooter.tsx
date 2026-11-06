@@ -1,52 +1,27 @@
 import Link from 'next/link';
 import { attendanceEnabled, timetableEnabled } from './SiteHeader';
+import { navLinks } from './nav';
 import styles from './SiteFooter.module.css';
 
 export async function SiteFooter() {
   const [timetable, attendance] = await Promise.all([timetableEnabled(), attendanceEnabled()]);
-  const links = [
-    { href: '/', label: 'Home' },
-    { href: '/seat', label: 'My Seating Plan' },
-    { href: '/homework', label: 'Homework' },
-    ...(attendance ? [{ href: '/attendance', label: 'Attendance' }] : []),
-    ...(timetable ? [{ href: '/timetable', label: 'Live Timetable' }] : []),
-    { href: '/tests', label: 'OLT Mock Tests' },
-  ];
+  const links = [{ href: '/', label: 'Home' }, ...navLinks(timetable, attendance)];
   return (
     <footer className={styles.footer}>
       <div className={`container ${styles.inner}`}>
-        <div className={styles.cols}>
-          <div>
-            <p className="eyebrow">Navigate</p>
-            <ul>
-              {links.map((l) => (
-                <li key={l.href}>
-                  <Link href={l.href}>{l.label}</Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <p className="eyebrow">The Section</p>
-            <ul>
-              <li>PGDM 2026–28</li>
-              <li>Section E · Term II</li>
-              <li>Outside the academic block</li>
-            </ul>
-          </div>
-          <div>
-            <p className="eyebrow">Privacy</p>
-            <p className={styles.small}>
-              You only ever see your own seat, your own homework ticks and your own hearts. Roll numbers are protected by a PIN, and nothing
-              here is shared with other sections.
-            </p>
-          </div>
-        </div>
-        <p className={styles.mark} aria-hidden>
-          Section <em>E</em>
+        <p className={styles.small}>
+          You only ever see your own seat, your own homework ticks and your own leaves. Roll numbers are protected by a PIN, and nothing
+          here is shared with other sections. Times follow the college’s official timetable.
         </p>
+        <nav aria-label="Footer" className={styles.links}>
+          {links.map((l) => (
+            <Link key={l.href} href={l.href}>
+              {l.label}
+            </Link>
+          ))}
+        </nav>
         <div className={styles.base}>
-          <span>Made outside the building.</span>
+          <span>PGDM 2026–28 · Section E. Made outside the building.</span>
           <Link href="/admin" className={styles.admin}>
             Admin
           </Link>

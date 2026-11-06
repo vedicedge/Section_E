@@ -36,7 +36,7 @@
 }
 .code {
   min-width: 84px;
-  text-transform: uppercase;
+
 }
 .num {
   width: 84px;
@@ -97,7 +97,8 @@
 
 .sum {
   font-family: var(--serif);
-  font-style: italic;
+  font-weight: 650;
+  font-style: normal;
   font-size: 22px;
   line-height: 1.2;
 }
@@ -192,10 +193,10 @@
   }
   .table td[data-label]::before {
     content: attr(data-label);
-    font-size: 10.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    font-weight: 650;
+    font-size: 13px;
+
+    letter-spacing: 0;
+    font-weight: 500;
     color: var(--muted);
   }
   .table td[data-label='Title'],

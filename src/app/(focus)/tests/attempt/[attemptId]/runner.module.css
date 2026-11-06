@@ -34,10 +34,10 @@
   line-height: 1;
 }
 .barTitle {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-weight: 650;
+  font-size: 13px;
+
+  letter-spacing: 0;
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -54,15 +54,16 @@
   display: grid;
   justify-items: end;
   font-family: var(--serif);
+  font-weight: 650;
   font-size: 30px;
   line-height: 1;
   letter-spacing: -0.01em;
 }
 .timerLabel {
   font-family: var(--sans);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  font-size: 13px;
+
+  letter-spacing: 0;
   font-weight: 600;
   color: var(--muted);
 }
@@ -105,9 +106,9 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 18px;
-  font-size: 12.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-size: 13px;
+
+  letter-spacing: 0;
   color: var(--muted);
 }
 .qMeta strong {
@@ -117,6 +118,7 @@
   margin-top: 18px;
   font-variant-numeric: lining-nums;
   font-family: var(--serif);
+  font-weight: 650;
   font-size: clamp(28px, 3.2vw, 44px);
   line-height: 1.15;
   letter-spacing: -0.015em;
@@ -160,8 +162,9 @@
   display: grid;
   place-items: center;
   font-family: var(--serif);
+  font-weight: 500;
   font-size: 18px;
-  font-style: italic;
+  font-style: normal;
 }
 .optionOn {
   border-color: var(--ink);
@@ -261,7 +264,7 @@
 .swatch {
   width: 14px;
   height: 14px;
-  border-radius: 3px;
+  border-radius: 10px;
   border: 1px solid var(--line-strong);
   position: relative;
 }
@@ -286,6 +289,7 @@
 }
 .dialogTitle {
   font-family: var(--serif);
+  font-weight: 650;
   font-size: 36px;
   line-height: 1;
   letter-spacing: -0.02em;
@@ -297,15 +301,16 @@
   margin: 20px 0 14px;
 }
 .dialogStats dt {
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  font-size: 13px;
+
+  letter-spacing: 0;
   font-weight: 600;
   color: var(--muted);
 }
 .dialogStats dd {
   margin: 2px 0 0;
   font-family: var(--serif);
+  font-weight: 650;
   font-size: 36px;
   line-height: 1;
 }
@@ -324,8 +329,9 @@
   place-items: center;
   background: color-mix(in srgb, var(--paper) 80%, transparent);
   font-family: var(--serif);
+  font-weight: 650;
   font-size: 28px;
-  font-style: italic;
+  font-style: normal;
 }
 
 @media (max-width: 900px) {
@@ -353,8 +359,8 @@
     border: 0;
     font-size: 13px;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+
+    letter-spacing: 0;
   }
   .navInner {
     display: none;

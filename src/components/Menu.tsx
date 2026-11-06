@@ -5,47 +5,27 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/client-api';
 import { forgetThisDevice } from '@/lib/push-client';
+import type { NavLink } from './nav';
 import styles from './Menu.module.css';
-
-interface MenuLink {
-  href: string;
-  label: string;
-}
-
-function menuLinks(timetable: boolean, attendance: boolean): MenuLink[] {
-  return [
-    { href: '/', label: 'Home' },
-    { href: '/seat', label: 'My Seating Plan' },
-    { href: '/homework', label: 'Homework' },
-    ...(attendance ? [{ href: '/attendance', label: 'Attendance' }] : []),
-    ...(timetable ? [{ href: '/timetable', label: 'Live Timetable' }] : []),
-    { href: '/tests', label: 'OLT Mock Tests' },
-  ];
-}
-
-const pad2 = (n: number) => String(n).padStart(2, '0');
 
 interface Props {
   student: { rollNo: string; name: string } | null;
-  /** Whether the live timetable is switched on (its link is hidden otherwise). */
-  timetable: boolean;
-  /** Whether the Attendance tab is switched on (its link is hidden otherwise). */
-  attendance: boolean;
+  /** The page links shown in the bar on wider screens. */
+  links: NavLink[];
   /** The signed-in student's unticked homework due tomorrow. */
   dueTomorrow: number;
-  tone?: 'paper' | 'red';
 }
 
-export function MenuButton({ student, timetable, attendance, dueTomorrow, tone = 'paper' }: Props) {
+/** Phones: a two-line burger that turns into a cross and drops the page list under the bar. */
+export function MenuButton({ student, links, dueTomorrow }: Props) {
   const [open, setOpen] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const links = menuLinks(timetable, attendance);
-  const dueText = dueTomorrow > 0 ? `${dueTomorrow} due tomorrow` : null;
-  const openLabel = dueTomorrow > 0 ? `Open menu — ${dueTomorrow} homework ${dueTomorrow === 1 ? 'item' : 'items'} due tomorrow` : 'Open menu';
+  const all = [{ href: '/', label: 'Home' }, ...links];
+  const openLabel = dueTomorrow > 0 ? `Open menu, ${dueTomorrow} homework ${dueTomorrow === 1 ? 'item' : 'items'} due tomorrow` : 'Open menu';
 
   // Close on navigation.
   useEffect(() => setOpen(false), [pathname]);
@@ -55,9 +35,12 @@ export function MenuButton({ student, timetable, attendance, dueTomorrow, tone =
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape') {
+        setOpen(false);
+        buttonRef.current?.focus();
+      }
       if (e.key === 'Tab' && panelRef.current) {
-        const focusables = panelRef.current.querySelectorAll<HTMLElement>('a, button');
+        const focusables = [buttonRef.current, ...panelRef.current.querySelectorAll<HTMLElement>('a, button')].filter(Boolean) as HTMLElement[];
         const first = focusables[0];
         const last = focusables[focusables.length - 1];
         if (e.shiftKey && document.activeElement === first) {
@@ -70,11 +53,9 @@ export function MenuButton({ student, timetable, attendance, dueTomorrow, tone =
       }
     };
     window.addEventListener('keydown', onKey);
-    panelRef.current?.querySelector<HTMLElement>('a')?.focus();
     return () => {
       document.body.style.overflow = prev;
       window.removeEventListener('keydown', onKey);
-      buttonRef.current?.focus();
     };
   }, [open]);
 
@@ -96,51 +77,48 @@ export function MenuButton({ student, timetable, attendance, dueTomorrow, tone =
       <button
         ref={buttonRef}
         type="button"
-        className={`${styles.trigger} ${open ? styles.triggerOpen : ''}`}
+        className={styles.trigger}
         aria-expanded={open}
         aria-controls="site-menu"
         aria-label={open ? 'Close menu' : openLabel}
         onClick={() => setOpen((v) => !v)}
       >
-        <span className={styles.plus} aria-hidden />
-        {dueTomorrow > 0 && (
-          <span className={`${styles.flag} ${tone === 'red' ? styles.flagOnRed : ''} tabular`} aria-hidden>
+        <span className={styles.burger} data-open={open} aria-hidden>
+          <span />
+          <span />
+        </span>
+        {dueTomorrow > 0 && !open && (
+          <span className={`${styles.flag} tabular`} aria-hidden>
             {dueTomorrow > 9 ? '9+' : dueTomorrow}
           </span>
         )}
       </button>
 
-      <div
-        id="site-menu"
-        ref={panelRef}
-        className={`${styles.panel} ${open ? styles.panelOpen : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Site menu"
-        hidden={!open}
-      >
-        <div className={`container ${styles.panelInner}`}>
-          <button type="button" className={styles.close} onClick={() => setOpen(false)} aria-label="Close menu">
-            <span className={styles.plus} aria-hidden />
-          </button>
-          <nav aria-label="Main">
-            <ol className={styles.list}>
-              {links.map((link, i) => (
-                <li key={link.href} style={{ animationDelay: `${80 + i * 60}ms` }}>
-                  <Link href={link.href} className={styles.item} aria-current={pathname === link.href ? 'page' : undefined}>
-                    <span className={styles.num}>{pad2(i + 1)}</span>
-                    <span className={styles.label}>{link.label}</span>
-                    {link.href === '/homework' && dueText && <span className={styles.due}>({dueText})</span>}
+      {open && (
+        <div id="site-menu" ref={panelRef} className={styles.panel}>
+          <ul className={styles.list}>
+            {all.map((link, i) => {
+              const on = link.href === '/' ? pathname === '/' : pathname === link.href || pathname.startsWith(link.href + '/');
+              return (
+                <li key={link.href} style={{ animationDelay: `${i * 30}ms` }}>
+                  <Link
+                    href={link.href}
+                    className={`${styles.item} ${on ? styles.itemOn : ''}`}
+                    aria-current={on ? 'page' : undefined}
+                    onClick={() => setOpen(false)}
+                  >
+                    {link.label}
+                    {link.href === '/homework' && dueTomorrow > 0 && <span className={styles.due}>{dueTomorrow} due tomorrow</span>}
                   </Link>
                 </li>
-              ))}
-            </ol>
-          </nav>
+              );
+            })}
+          </ul>
           <div className={styles.foot}>
-            <p className="caps">
+            <p className={styles.who}>
               {student ? (
                 <>
-                  Signed in as {student.name} · {student.rollNo}
+                  Signed in as {student.name} · <span className="tabular">{student.rollNo}</span>
                 </>
               ) : (
                 <>Not registered on this device</>
@@ -148,15 +126,15 @@ export function MenuButton({ student, timetable, attendance, dueTomorrow, tone =
             </p>
             <div className={styles.footActions}>
               {student ? (
-                <button type="button" className={styles.footLink} onClick={signOut}>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={signOut}>
                   Sign out
                 </button>
               ) : (
-                <Link className={styles.footLink} href="/register">
+                <Link className="btn btn--accent btn--sm" href="/register">
                   Register
                 </Link>
               )}
-              <Link className={styles.footLink} href="/admin">
+              <Link className="btn btn--ghost btn--sm" href="/admin">
                 Admin
               </Link>
             </div>
@@ -165,7 +143,7 @@ export function MenuButton({ student, timetable, attendance, dueTomorrow, tone =
             </p>
           </div>
         </div>
-      </div>
+      )}
     </>
   );
 }

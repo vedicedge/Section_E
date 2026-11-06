@@ -1,7 +1,7 @@
 .back {
-  font-size: 12.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-size: 13px;
+
+  letter-spacing: 0;
   font-weight: 550;
   color: var(--muted);
 }
@@ -14,9 +14,10 @@
 .title {
   margin-top: 12px;
   font-family: var(--serif);
+  font-weight: 650;
   font-size: clamp(44px, 6.4vw, 96px);
   line-height: 0.95;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.035em;
   max-width: 18ch;
 }
 .desc {
@@ -34,7 +35,7 @@
 }
 
 .rules {
-  border-top: 1px solid var(--line-strong);
+  border-top: 1px solid var(--line);
   padding-top: 18px;
 }
 .instructions {
@@ -58,7 +59,8 @@
 }
 .ruleList span {
   font-family: var(--serif);
-  font-style: italic;
+  font-weight: 500;
+  font-style: normal;
   color: var(--accent);
   font-size: 18px;
 }
@@ -71,7 +73,7 @@
   padding: 22px;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 10px;
 }
 .facts {
   margin: 0;
@@ -80,15 +82,16 @@
   gap: 16px;
 }
 .facts dt {
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  font-size: 13px;
+
+  letter-spacing: 0;
   font-weight: 600;
   color: var(--muted);
 }
 .facts dd {
   margin: 2px 0 0;
   font-family: var(--serif);
+  font-weight: 650;
   font-size: 24px;
   line-height: 1.1;
 }

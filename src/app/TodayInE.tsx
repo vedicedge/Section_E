@@ -70,7 +70,7 @@ function DueList({ items, large = false }: { items: DueItem[]; large?: boolean }
 
 const ALL_HOMEWORK = (
   <Link href="/homework" className="arrow-link">
-    All homework <span aria-hidden>→</span>
+    All homework <span aria-hidden>›</span>
   </Link>
 );
 
@@ -195,7 +195,7 @@ export async function TodayInE({ timetable, student }: Props) {
         </h2>
       </div>
       <Link href="/timetable" className="arrow-link">
-        Full timetable <span aria-hidden>→</span>
+        Full timetable <span aria-hidden>›</span>
       </Link>
     </div>
   );

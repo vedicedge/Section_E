@@ -24,6 +24,7 @@
 }
 .loginTitle {
   font-family: var(--serif);
+  font-weight: 650;
   font-size: 44px;
   line-height: 1;
   letter-spacing: -0.03em;
@@ -54,13 +55,14 @@
 }
 .navBrand em {
   font-family: var(--serif);
+  font-weight: 650;
 }
 .navBadge {
   margin-left: 6px;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-weight: 650;
+  font-size: 13px;
+
+  letter-spacing: 0;
+  font-weight: 500;
   color: var(--vermilion);
 }
 .nav ul {
@@ -73,7 +75,7 @@
 .nav ul a {
   display: block;
   padding: 9px 12px;
-  border-radius: 4px;
+  border-radius: 10px;
   font-size: 14px;
   color: rgb(242 233 223 / 0.72);
 }
@@ -93,9 +95,9 @@
   color: rgb(242 233 223 / 0.8);
   border-radius: 999px;
   padding: 8px 12px;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-size: 13px;
+
+  letter-spacing: 0;
 }
 
 .main {
@@ -114,6 +116,7 @@
 }
 .title {
   font-family: var(--serif);
+  font-weight: 650;
   font-size: clamp(38px, 4vw, 56px);
   line-height: 1;
   letter-spacing: -0.03em;
@@ -142,14 +145,15 @@ a.card:hover {
   border-color: var(--ink);
 }
 .cardLabel {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-weight: 650;
+  font-size: 13px;
+
+  letter-spacing: 0;
+  font-weight: 500;
   color: var(--muted);
 }
 .cardValue {
   font-family: var(--serif);
+  font-weight: 650;
   font-size: 48px;
   line-height: 1;
   letter-spacing: -0.03em;
@@ -169,6 +173,7 @@ a.card:hover {
 }
 .panelTitle {
   font-family: var(--serif);
+  font-weight: 650;
   font-size: 28px;
   line-height: 1.05;
   letter-spacing: -0.02em;
@@ -213,11 +218,11 @@ a.card:hover {
   vertical-align: middle;
 }
 .table thead th {
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  font-size: 13px;
+
+  letter-spacing: 0;
   color: var(--muted);
-  font-weight: 650;
+  font-weight: 500;
   background: var(--paper-2);
   white-space: nowrap;
 }
@@ -262,7 +267,7 @@ a.card:hover {
 .emptyBox strong {
   display: block;
   font-family: var(--serif);
-  font-weight: 400;
+  font-weight: 650;
   font-size: 30px;
   color: var(--ink);
   margin-bottom: 6px;
