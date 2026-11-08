@@ -199,4 +199,24 @@ export const MIGRATIONS: string[] = [
   );
   CREATE INDEX homework_suggestions_status_idx ON homework_suggestions (status, received_at);
   `,
+
+  // 6 — event posters shown as a pop-up between two dates, and mock tests hosted elsewhere (Claude artifacts).
+  `
+  CREATE TABLE promotions (
+    id         TEXT PRIMARY KEY,
+    title      TEXT NOT NULL,
+    link       TEXT,
+    starts_on  DATE NOT NULL,
+    ends_on    DATE NOT NULL,
+    mime       TEXT NOT NULL,
+    image      BYTEA NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE TABLE mock_links (
+    id         TEXT PRIMARY KEY,
+    title      TEXT NOT NULL,
+    url        TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  `,
 ];

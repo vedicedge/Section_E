@@ -4,6 +4,7 @@ import { getStudent } from '@/lib/session';
 import { listPublishedQuizzes, myAttemptSummaries, type QuizRecord } from '@/lib/quizzes/repo';
 import { formatDateTime, relativeTime } from '@/lib/time';
 import { Hourglass } from '@/components/Engravings';
+import { listMockLinks } from '@/lib/extras';
 import styles from './tests.module.css';
 
 export const metadata: Metadata = { title: 'OLT Mock Tests' };
@@ -64,7 +65,7 @@ function TestCard({ quiz, attempt }: { quiz: QuizRecord; attempt?: { id: string;
 }
 
 export default async function TestsPage() {
-  const [quizzes, student] = await Promise.all([listPublishedQuizzes(), getStudent()]);
+  const [quizzes, student, mockLinks] = await Promise.all([listPublishedQuizzes(), getStudent(), listMockLinks()]);
   const attempts = student ? await myAttemptSummaries(student.rollNo) : [];
   const latest = new Map<string, (typeof attempts)[number]>();
   for (const a of attempts) if (!latest.has(a.quizId)) latest.set(a.quizId, a);
@@ -81,6 +82,23 @@ export default async function TestsPage() {
           OLT <em>Mock</em> Tests<span className="count">({String(live.length).padStart(2, '0')})</span>
         </h1>
       </header>
+
+      {mockLinks.length > 0 && (
+        <section style={{ marginBottom: 40 }} aria-labelledby="claude-mocks">
+          <h2 id="claude-mocks" className={styles.emptyTitle}>
+            Practice tests
+          </h2>
+          <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 12 }}>
+            {mockLinks.map((m) => (
+              <li key={m.id}>
+                <a href={m.url} target="_blank" rel="noopener noreferrer" className="btn btn--accent btn--block">
+                  {m.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {quizzes.length === 0 ? (
         <section className={styles.empty}>

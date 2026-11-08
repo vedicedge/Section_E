@@ -425,4 +425,28 @@ test.describe.serial('Section E', () => {
     expect((await request.get(url)).status()).toBe(404);
     expect((await request.get(`/api/calendar/${'x'.repeat(32)}.ics`)).status()).toBe(404);
   });
+
+  test('posters pop up between their dates; Claude mock tests are listed', async ({ page, browser }) => {
+    await adminLogin(page);
+    await page.goto('/admin/extras');
+    await page.getByLabel('Title').first().fill('E2E Fest');
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+    await page.getByLabel(/Poster image/).setInputFiles({ name: 'p.png', mimeType: 'image/png', buffer: png });
+    await page.getByRole('button', { name: 'Add poster' }).click();
+    await expect(page.getByText('(showing now)')).toBeVisible();
+    await page.getByLabel('Title').nth(1).fill('E2E Mock');
+    await page.getByLabel('Artifact link').fill('https://claude.ai/public/artifacts/e2e-mock');
+    await page.getByRole('button', { name: 'Add mock test' }).click();
+    await expect(page.getByRole('link', { name: 'E2E Mock' })).toBeVisible();
+
+    const visitor = await browser.newPage();
+    await visitor.goto('/tests');
+    await expect(visitor.getByRole('dialog', { name: 'E2E Fest' })).toBeVisible();
+    await visitor.getByRole('button', { name: 'Close' }).click();
+    await expect(visitor.getByRole('dialog')).toHaveCount(0);
+    await expect(visitor.getByRole('link', { name: 'E2E Mock' })).toHaveAttribute('href', 'https://claude.ai/public/artifacts/e2e-mock');
+    await visitor.reload();
+    await expect(visitor.getByRole('dialog')).toHaveCount(0);
+    await visitor.close();
+  });
 });
