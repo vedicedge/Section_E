@@ -5,6 +5,7 @@ import { getSetting, setSetting } from '../settings';
 import { readWorkbook } from '../xlsx';
 import { describeSource, downloadSource, parseSourceUrl, SourceError } from './source';
 import { parseTimetable, PARSER_VERSION, type ParsedTimetable, type Session } from './parse';
+import { relayNeedsFile } from './relay-policy';
 
 /**
  * The timetable, from one of three sources:
@@ -50,6 +51,8 @@ interface CacheRecord {
   checkedAt: string; // last time the source confirmed this copy (download, relay heartbeat, upload)
   contentChangedAt: string; // when the content hash last changed
   sourceModifiedAt: string | null; // as reported by the source (Drive / Apps Script / Last-Modified)
+  /** When the source last delivered the whole workbook (download, relay push, upload), changed or not. */
+  receivedAt?: string;
   data: ParsedTimetable;
   changes: Change[];
   lastError: { code: string; message: string; at: string } | null;
@@ -227,7 +230,14 @@ async function store(
   let next: CacheRecord;
   const sameParse = cache?.parserVersion === PARSER_VERSION && cache?.section === config.section;
   if (cache && sameSource && cache.hash === hash && sameParse && cache.data) {
-    next = { ...cache, checkedAt: now, sourceModifiedAt: file.modifiedAt ?? cache.sourceModifiedAt, lastError: null, via: file.via };
+    next = {
+      ...cache,
+      checkedAt: now,
+      receivedAt: now,
+      sourceModifiedAt: file.modifiedAt ?? cache.sourceModifiedAt,
+      lastError: null,
+      via: file.via,
+    };
   } else {
     const grids = await readWorkbook(buffer);
     const data = parseTimetable(grids, { section: config.section });
@@ -243,6 +253,7 @@ async function store(
       fileName: file.fileName,
       via: file.via,
       checkedAt: opts.reparse && cache ? cache.checkedAt : now,
+      receivedAt: opts.reparse && cache ? cache.receivedAt : now,
       contentChangedAt: contentChanged || !cache ? now : cache.contentChangedAt,
       sourceModifiedAt: file.modifiedAt,
       data,
@@ -275,19 +286,13 @@ export async function ingestWorkbook(sourceKey: 'relay' | 'upload', file: Incomi
 
 /**
  * Relay heartbeat without a file. Returns true when our copy already matches the sheet's modified
- * time (nothing to send); false asks the relay to send the workbook.
+ * time and the whole file was re-checked within the last 6 hours (nothing to send); false asks the
+ * relay to send the workbook. The rule lives in relay-policy.ts.
  */
 export async function relayHeartbeat(modifiedAt: string | null): Promise<boolean> {
   const cache = await readCache();
   const { section } = await getTimetableConfig();
-  if (
-    !cache ||
-    cache.sourceKey !== 'relay' ||
-    !modifiedAt ||
-    cache.sourceModifiedAt !== modifiedAt ||
-    cache.parserVersion !== PARSER_VERSION ||
-    cache.section !== section
-  ) {
+  if (!cache || relayNeedsFile(cache, modifiedAt, { parserVersion: PARSER_VERSION, section })) {
     return false;
   }
   await setSetting(CACHE_KEY, { ...cache, checkedAt: new Date().toISOString(), lastError: null });
@@ -398,6 +403,7 @@ export async function getTimetableDiagnostics() {
           checkedAt: cache.checkedAt,
           contentChangedAt: cache.contentChangedAt,
           sourceModifiedAt: cache.sourceModifiedAt,
+          receivedAt: cache.receivedAt ?? null,
           detection: cache.data?.detection ?? null,
           warnings: cache.data?.warnings ?? [],
           sessions: cache.data?.sessions.length ?? 0,

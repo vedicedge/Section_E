@@ -111,6 +111,15 @@ export function RelaySetup({ d, now, onSaved }: PanelProps) {
             )}
           </dd>
         </div>
+        {active && copy?.receivedAt && (
+          <div>
+            <dt>Last full check</dt>
+            <dd>
+              <time dateTime={copy.receivedAt}>{relativeTime(copy.receivedAt, now)}</time>{' '}
+              <span className={styles.dim}>· the whole file is re-read for Section E at least every 6 hours</span>
+            </dd>
+          </div>
+        )}
         {copy?.sourceModifiedAt && (
           <div>
             <dt>Sheet last edited</dt>
