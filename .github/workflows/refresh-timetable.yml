@@ -1,0 +1,70 @@
+# Keeps the live timetable fresh even when nobody opens the site.
+#
+# In "link" mode the site only re-downloads the official sheet when someone visits, so the phone
+# calendar feed, "what changed" highlights and next-day reminders could fall behind on quiet days.
+# This asks the site to re-download it every 6 hours. It uses the site's public, rate-limited
+# refresh endpoint, so no secret is needed. GitHub may start scheduled runs a few minutes late.
+#
+# Run it by hand from the Actions tab ("Refresh timetable" → "Run workflow").
+
+name: Refresh timetable
+
+on:
+  schedule:
+    # 00:17, 06:17, 12:17 and 18:17 UTC = 5:47 am, 11:47 am, 5:47 pm and 11:47 pm in India.
+    # (Off the hour, because GitHub delays jobs queued at :00.)
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: refresh-timetable
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SITE_URL: https://section-e-lilac.vercel.app
+    steps:
+      - name: Ask the site to re-download the timetable
+        run: |
+          set -euo pipefail
+          code=$(curl -sS --retry 3 --retry-delay 20 --retry-all-errors --max-time 90 \
+            -o body.json -w '%{http_code}' \
+            -X POST -H 'Content-Type: application/json' -d '{}' \
+            "$SITE_URL/api/timetable/refresh")
+          echo "HTTP $code"
+          cat body.json; echo
+
+          if [ "$code" = "429" ]; then
+            echo "Someone refreshed it in the last minute, so it is already fresh."
+            exit 0
+          fi
+          if [ "$code" != "200" ]; then
+            echo "::error::The site answered HTTP $code."
+            exit 1
+          fi
+
+          status=$(jq -r '.status // ""' body.json)
+          mode=$(jq -r '.mode // ""' body.json)
+          checked=$(jq -r '.checkedAt // ""' body.json)
+          message=$(jq -r '.error.message // ""' body.json)
+
+          if [ "$status" = "disabled" ]; then
+            echo "The timetable is switched off in /admin/timetable; nothing to do."
+            exit 0
+          fi
+          if [ "$mode" != "link" ]; then
+            echo "The site is in \"$mode\" mode: the timetable is pushed to it, so there is nothing to pull."
+            exit 0
+          fi
+          if [ "$status" = "ok" ]; then
+            echo "Timetable refreshed (checked at $checked)."
+            exit 0
+          fi
+          # stale / error / unconfigured: fail the run so it shows red and GitHub emails a notice.
+          echo "::error::Timetable refresh did not succeed (status: $status). $message"
+          exit 1
