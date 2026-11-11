@@ -7,6 +7,7 @@ import { getStudent } from '@/lib/session';
 import { heroHearts } from '@/lib/attendance/repo';
 import { countLiveQuizzes } from '@/lib/quizzes/repo';
 import { openHomeworkCount } from '@/lib/homework/repo';
+import { countStudyMaterials } from '@/lib/study';
 import { TodayInE, TodaySkeleton } from './TodayInE';
 import styles from './page.module.css';
 
@@ -24,7 +25,7 @@ async function stats() {
   return { students: Number(row?.students ?? 0), subjects: Number(row?.subjects ?? 0), live, homework };
 }
 
-const HOW_MANY = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'];
+const HOW_MANY = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven'];
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 function Chevron() {
@@ -64,6 +65,11 @@ const ICONS = {
       <path d="M5 15h26M12 4v7M24 4v7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   ),
+  study: (
+    <svg width="36" height="36" viewBox="0 0 36 36" aria-hidden>
+      <path d="M18 9c-3-2.4-7.4-3-12-3v21c4.6 0 9 .6 12 3 3-2.4 7.4-3 12-3V6c-4.6 0-9 .6-12 3zM18 9v21" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+    </svg>
+  ),
   tests: (
     <svg width="36" height="36" viewBox="0 0 36 36" aria-hidden>
       <circle cx="18" cy="20" r="12" fill="none" stroke="currentColor" strokeWidth="2" />
@@ -100,11 +106,12 @@ interface Tool {
 
 export default async function Home() {
   const studentLoad = getStudent();
-  const [s, student, timetable, h] = await Promise.all([
+  const [s, student, timetable, h, studyCount] = await Promise.all([
     stats(),
     studentLoad,
     timetableEnabled(),
     studentLoad.then((st) => heroHearts(st?.rollNo ?? null)),
+    countStudyMaterials(),
   ]);
   const first = student?.name.split(' ')[0];
 
@@ -152,6 +159,13 @@ export default async function Home() {
       title: 'OLT mock tests',
       body: 'Timed MCQ practice before the real OLT, with your score as soon as you finish.',
       stat: s.live ? plural(s.live, 'live now', 'live now') : null,
+    },
+    {
+      key: 'study',
+      href: '/study',
+      title: 'Study material',
+      body: 'Notes and videos shared for the section, sorted by subject.',
+      stat: studyCount ? plural(studyCount, 'item', 'items') : null,
     },
   ];
   const things = HOW_MANY[tools.length] ?? String(tools.length);

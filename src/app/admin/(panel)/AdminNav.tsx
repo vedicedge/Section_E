@@ -12,7 +12,7 @@ const LINKS = [
   { href: '/admin/seating', label: 'Seating plans' },
   { href: '/admin/students', label: 'Students' },
   { href: '/admin/timetable', label: 'Timetable' },
-  { href: '/admin/extras', label: 'Posters & links' },
+  { href: '/admin/extras', label: 'Posters, links & study' },
 ];
 
 export function AdminNav() {
