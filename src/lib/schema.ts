@@ -219,4 +219,15 @@ export const MIGRATIONS: string[] = [
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   );
   `,
+
+  // 7 — study material: links to notes and videos, grouped by subject.
+  `
+  CREATE TABLE study_materials (
+    id         TEXT PRIMARY KEY,
+    subject    TEXT,
+    title      TEXT NOT NULL,
+    url        TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  `,
 ];

@@ -426,9 +426,52 @@ test.describe.serial('Section E', () => {
     expect((await request.get(`/api/calendar/${'x'.repeat(32)}.ics`)).status()).toBe(404);
   });
 
-  test('posters pop up between their dates; Claude mock tests are listed', async ({ page, browser }) => {
+  // One admin sign-in covers all of /admin/extras (sign-ins are rate-limited). Study material goes
+  // first, before a poster exists, so no pop-up sits over the student's page.
+  test('study material is listed for registered students; posters pop up; Claude mock tests are listed', async ({ page, browser }) => {
     await adminLogin(page);
     await page.goto('/admin/extras');
+    const refused = await page.request.post('/api/admin/study-materials', { data: { title: 'Bad', url: 'http://example.com/x' } });
+    expect(refused.status()).toBe(422);
+    await page.getByLabel('Subject (optional)').fill('tod');
+    await page.getByLabel('Title').nth(2).fill('E2E Notes');
+    await page.getByLabel('Link', { exact: true }).fill('https://drive.google.com/file/d/e2eNotesFileId0001/view');
+    await page.getByRole('button', { name: 'Add study material' }).click();
+    await expect(page.getByText('Study material added.')).toBeVisible();
+    await page.getByLabel('Subject (optional)').fill('TOD');
+    await page.getByLabel('Title').nth(2).fill('E2E Video');
+    await page.getByLabel('Link', { exact: true }).fill('https://youtu.be/L48uKyFLrMs');
+    await page.getByRole('button', { name: 'Add study material' }).click();
+    await expect(page.getByRole('link', { name: /E2E Video/ })).toBeVisible();
+
+    // Visitors are asked to register; nothing is listed for them.
+    const guest = await browser.newPage();
+    await guest.goto('/study');
+    await expect(guest.getByRole('link', { name: 'Register to see it' })).toBeVisible();
+    await expect(guest.getByText('E2E Notes')).toHaveCount(0);
+    expect((await guest.request.post('/api/admin/study-materials', { data: { title: 'x', url: 'https://example.com' } })).status()).toBe(401);
+    await guest.close();
+
+    const student = await browser.newPage();
+    await signIn(student, '26PGDM902', '2468');
+    await student.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Study material' }).click();
+    await expect(student.getByRole('heading', { level: 1, name: 'Study material' })).toBeVisible();
+    await expect(student.getByRole('heading', { level: 2, name: /TOD/ })).toBeVisible();
+    const notes = student.getByRole('link', { name: /E2E Notes/ });
+    await expect(notes).toHaveAttribute('href', 'https://drive.google.com/file/d/e2eNotesFileId0001/view');
+    await expect(notes).toHaveAttribute('target', '_blank');
+    await expect(notes).toContainText('Google Drive');
+    const video = student.getByRole('link', { name: /E2E Video/ });
+    await expect(video).toHaveAttribute('href', 'https://youtu.be/L48uKyFLrMs');
+    await expect(video.locator('img')).toHaveAttribute('src', 'https://i.ytimg.com/vi/L48uKyFLrMs/hqdefault.jpg');
+
+    await student.close();
+
+    // The admin can take one down again.
+    page.once('dialog', (d) => d.accept());
+    await page.getByRole('listitem').filter({ hasText: 'E2E Notes' }).getByRole('button', { name: 'Delete' }).click();
+    await expect(page.getByRole('link', { name: /E2E Notes/ })).toHaveCount(0);
+
     await page.getByLabel('Title').first().fill('E2E Fest');
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
     await page.getByLabel(/Poster image/).setInputFiles({ name: 'p.png', mimeType: 'image/png', buffer: png });

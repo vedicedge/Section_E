@@ -5,9 +5,11 @@ import { useState, type FormEvent } from 'react';
 import { api } from '@/lib/client-api';
 import { todayISO } from '@/lib/time';
 import type { MockLink, Promotion } from '@/lib/extras';
+import type { StudyMaterial } from '@/lib/study';
+import { studySource } from '@/lib/study-links';
 import styles from '../../admin.module.css';
 
-export function ExtrasForms({ promotions, links }: { promotions: Promotion[]; links: MockLink[] }) {
+export function ExtrasForms({ promotions, links, study }: { promotions: Promotion[]; links: MockLink[]; study: StudyMaterial[] }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -40,7 +42,21 @@ export function ExtrasForms({ promotions, links }: { promotions: Promotion[]; li
     router.refresh();
   }
 
-  async function remove(kind: 'promotions' | 'mock-links', id: string, name: string) {
+  async function addStudy(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    setBusy('study');
+    setMsg(null);
+    const res = await api('/api/admin/study-materials', { subject: data.get('subject'), title: data.get('title'), url: data.get('url') });
+    setBusy(null);
+    if (!res.ok) return setMsg(res.error);
+    form.reset();
+    setMsg('Study material added.');
+    router.refresh();
+  }
+
+  async function remove(kind: 'promotions' | 'mock-links' | 'study-materials', id: string, name: string) {
     if (!confirm(`Delete “${name}”?`)) return;
     const res = await api(`/api/admin/${kind}/${id}`, undefined, 'DELETE');
     if (!res.ok) return setMsg(res.error);
@@ -133,6 +149,48 @@ export function ExtrasForms({ promotions, links }: { promotions: Promotion[]; li
                   {l.title}
                 </a>
                 <button type="button" className="btn btn--ghost btn--sm" onClick={() => remove('mock-links', l.id, l.title)}>
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </form>
+
+      <form className={styles.panel} onSubmit={addStudy}>
+        <h2 className={styles.panelTitle}>Add study material</h2>
+        <p className={styles.dim}>
+          Paste a link to notes (Google Drive, Docs, a PDF) or a YouTube video. It appears on the Study material page for registered students.
+          For Drive files, set sharing so your classmates can open them.
+        </p>
+        <div className={styles.row2}>
+          <label className="field">
+            <span className="label">Subject (optional)</span>
+            <input className="input" name="subject" maxLength={40} placeholder="e.g. TOD" />
+          </label>
+          <label className="field">
+            <span className="label">Title</span>
+            <input className="input" name="title" required maxLength={160} placeholder="e.g. Quiz 1 prep notes" />
+          </label>
+        </div>
+        <label className="field">
+          <span className="label">Link</span>
+          <input className="input" name="url" type="url" required placeholder="https://drive.google.com/… or https://youtu.be/…" />
+        </label>
+        <div className={styles.actions}>
+          <button className="btn btn--accent" disabled={busy !== null}>
+            {busy === 'study' ? 'Saving…' : 'Add study material'}
+          </button>
+        </div>
+        {study.length > 0 && (
+          <ul style={{ listStyle: 'none', padding: 0, margin: '16px 0 0', display: 'grid', gap: 10 }}>
+            {study.map((m) => (
+              <li key={m.id} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                <a href={m.url} target="_blank" rel="noopener noreferrer" style={{ flex: 1 }}>
+                  {m.subject ? `${m.subject} · ` : ''}
+                  {m.title} <span className={styles.dim}>({studySource(m.url)})</span>
+                </a>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => remove('study-materials', m.id, m.title)}>
                   Delete
                 </button>
               </li>
