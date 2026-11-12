@@ -230,4 +230,12 @@ export const MIGRATIONS: string[] = [
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   );
   `,
+
+  // 8 — instant feedback: a quiz can reveal each answer as soon as it is checked. Checked answers are
+  // locked in quiz_attempts.revealed ({ questionId: chosenOptionIds }) so they cannot be changed afterwards.
+  `
+  ALTER TABLE quizzes DROP CONSTRAINT IF EXISTS quizzes_show_answers_check;
+  ALTER TABLE quizzes ADD CONSTRAINT quizzes_show_answers_check CHECK (show_answers IN ('after_each', 'after_submit', 'after_close', 'never'));
+  ALTER TABLE quiz_attempts ADD COLUMN revealed JSONB NOT NULL DEFAULT '{}';
+  `,
 ];

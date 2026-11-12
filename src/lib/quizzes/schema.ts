@@ -33,7 +33,7 @@ export const quizInputSchema = z
     maxAttempts: z.number().int().min(0).max(50).default(1),
     shuffleQuestions: z.boolean().default(false),
     shuffleOptions: z.boolean().default(false),
-    showAnswers: z.enum(['after_submit', 'after_close', 'never']).default('after_submit'),
+    showAnswers: z.enum(['after_each', 'after_submit', 'after_close', 'never']).default('after_submit'),
     negativeMarking: z.number().min(0).max(1).default(0),
     questions: z.array(questionSchema).max(300),
   })

@@ -147,6 +147,56 @@ test.describe.serial('Section E', () => {
 
     await page.goto('/admin/tests');
     await expect(page.getByRole('link', { name: '1', exact: true })).toBeVisible();
+
+    // Instant feedback: each answer is revealed (and locked) as soon as the student checks it.
+    const created = await page.request.post('/api/admin/quizzes', {
+      data: {
+        title: 'Instant Mock',
+        showAnswers: 'after_each',
+        maxAttempts: 0,
+        questions: [
+          { prompt: 'Instant: 3 + 3 = ?', options: [{ id: 'a', text: 'Five' }, { id: 'b', text: 'Six' }], correct: ['b'], explanation: 'Three plus three is six.' },
+          { prompt: 'Instant: capital of France?', options: [{ id: 'a', text: 'Lyon' }, { id: 'b', text: 'Paris' }], correct: ['b'], explanation: 'Paris is the capital.' },
+        ],
+      },
+    });
+    expect(created.status()).toBe(200);
+    const { id: instantId } = await created.json();
+    expect((await page.request.post(`/api/admin/quizzes/${instantId}/status`, { data: { status: 'published' } })).status()).toBe(200);
+
+    const learner = await browser.newPage();
+    await signIn(learner, '26PGDM902', '2468');
+    await learner.goto(`/tests/${instantId}`);
+    await learner.getByRole('button', { name: 'Start test →' }).click();
+    await expect(learner.getByRole('heading', { name: 'Instant: 3 + 3 = ?' })).toBeVisible();
+    const check = learner.getByRole('button', { name: 'Check answer' });
+    await expect(check).toBeDisabled();
+    await learner.getByRole('radio', { name: /Six/ }).click();
+    await check.click();
+    await expect(learner.getByRole('status').filter({ hasText: 'Correct' })).toContainText('Three plus three is six.');
+    // The checked answer is final: clicking another option changes nothing.
+    await learner.getByRole('radio', { name: /Five/ }).click({ force: true });
+    await learner.keyboard.press('a');
+    await expect(learner.getByRole('radio', { name: /Six/ })).toHaveAttribute('aria-checked', 'true');
+    await expect(learner.getByRole('radio', { name: /Five/ })).toHaveAttribute('aria-checked', 'false');
+    await expect(learner.getByRole('button', { name: 'Check answer' })).toHaveCount(0);
+
+    await learner.getByRole('button', { name: 'Next →' }).click();
+    await learner.getByRole('radio', { name: /Lyon/ }).click();
+    await learner.getByRole('button', { name: 'Check answer' }).click();
+    await expect(learner.getByRole('status').filter({ hasText: 'Not quite' })).toContainText('Paris is the capital.');
+    await expect(learner.getByRole('radio', { name: /Paris/ })).toContainText('Correct answer');
+
+    // A question that is not part of the attempt is refused.
+    const attemptId = learner.url().split('/').pop()!;
+    const stray = await learner.request.post(`/api/attempts/${attemptId}/check`, { data: { questionId: 'not-a-question', chosen: ['b'] } });
+    expect(stray.status()).toBe(404);
+
+    await learner.getByRole('button', { name: 'Finish & submit' }).click();
+    await learner.getByRole('button', { name: 'Submit now' }).click();
+    await expect(learner).toHaveURL(/\/tests\/result\//);
+    await expect(learner.locator('p', { hasText: /^1\s*\/ 2$/ })).toBeVisible();
+    await learner.close();
   });
 
   test('timetable syncs from the linked workbook', async ({ page }) => {

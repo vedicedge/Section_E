@@ -405,3 +405,102 @@
     display: none;
   }
 }
+
+/* ------------------------------------------------ instant feedback */
+
+.optionLocked {
+  cursor: default;
+}
+.optionLocked:hover {
+  border-color: var(--line-strong);
+}
+.optionLocked:active {
+  transform: none;
+}
+.optionRight,
+.optionRight:hover {
+  border-color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 14%, var(--card));
+}
+.optionRight .letter {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: var(--paper);
+}
+.optionWrong,
+.optionWrong:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--card));
+}
+.optionWrong .letter {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--paper);
+}
+.optionTag {
+  grid-column: 2;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.optionRight .optionTag {
+  color: var(--ok);
+}
+.optionWrong .optionTag {
+  color: var(--accent);
+}
+
+.checkRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-top: 20px;
+}
+
+.feedback {
+  margin-top: 20px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: var(--card);
+  animation: feedbackIn 0.4s var(--ease) both;
+}
+@keyframes feedbackIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.feedbackRight {
+  box-shadow: inset 4px 0 0 var(--ok);
+}
+.feedbackWrong {
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+.feedbackTitle {
+  font-size: 17px;
+  font-weight: 700;
+}
+.feedbackRight .feedbackTitle {
+  color: var(--ok);
+}
+.feedbackWrong .feedbackTitle {
+  color: var(--accent);
+}
+.feedbackText {
+  margin-top: 6px;
+  font-size: 15.5px;
+  color: var(--ink-2);
+  white-space: pre-line;
+}
+
+.navRight {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: var(--paper);
+}
+.navWrong {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--paper);
+}
