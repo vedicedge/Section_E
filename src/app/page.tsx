@@ -8,6 +8,7 @@ import { heroHearts } from '@/lib/attendance/repo';
 import { countLiveQuizzes } from '@/lib/quizzes/repo';
 import { openHomeworkCount } from '@/lib/homework/repo';
 import { countStudyMaterials } from '@/lib/study';
+import { Reveal } from '@/components/Reveal';
 import { TodayInE, TodaySkeleton } from './TodayInE';
 import styles from './page.module.css';
 
@@ -224,20 +225,23 @@ export default async function Home() {
         {/* With the timetable off, this band only carries a student's own homework. */}
         {(timetable || student) && (
           <section className={styles.today} aria-labelledby="today-title">
-            <div className="container">
+            <Reveal className="container">
               <Suspense fallback={<TodaySkeleton timetable={timetable} />}>
                 <TodayInE timetable={timetable} student={student ? { rollNo: student.rollNo, name: student.name } : null} />
               </Suspense>
-            </div>
+            </Reveal>
           </section>
         )}
 
         <section className={styles.tools} aria-labelledby="tools-title">
           <div className="container">
-            <h2 id="tools-title" className={styles.sectionTitle}>
-              {things} things, built only for Section E.
-            </h2>
-            <p className={styles.sectionLede}>{student ? 'Each of them already shows what’s yours.' : 'Register once and each of them shows what’s yours.'}</p>
+            <Reveal>
+              <h2 id="tools-title" className={styles.sectionTitle}>
+                {things} things, built only for Section E.
+              </h2>
+              <p className={styles.sectionLede}>{student ? 'Each of them already shows what’s yours.' : 'Register once and each of them shows what’s yours.'}</p>
+            </Reveal>
+            <Reveal delay={80}>
             <nav aria-label="Features" className={styles.grid}>
               {tools.map((t) => (
                 <Link key={t.href} href={t.href} className={`${styles.tool} ${t.wide ? styles.toolWide : ''}`}>
@@ -256,12 +260,13 @@ export default async function Home() {
                 </Link>
               ))}
             </nav>
+            </Reveal>
           </div>
         </section>
 
         {!student && (
           <section className={styles.how} aria-labelledby="how-title">
-            <div className="container">
+            <Reveal className="container">
               <h2 id="how-title" className={styles.sectionTitle}>
                 Set up in under a minute.
               </h2>
@@ -282,12 +287,12 @@ export default async function Home() {
                   <span className={styles.stepBody}>This device remembers you. Forgot your PIN? The admin can reset it.</span>
                 </li>
               </ol>
-            </div>
+            </Reveal>
           </section>
         )}
 
         <section className={styles.claim} aria-labelledby="claim-title">
-          <div className="container">
+          <Reveal className="container">
             {student ? (
               <>
                 <h2 id="claim-title" className={styles.claimTitle}>
@@ -306,7 +311,7 @@ export default async function Home() {
                 <p className={styles.claimBody}>Only you see your seat, your homework ticks and your leaves. Nothing here is shared with other sections.</p>
               </>
             )}
-          </div>
+          </Reveal>
         </section>
       </main>
       <SiteFooter />

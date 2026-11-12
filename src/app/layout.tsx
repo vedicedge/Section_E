@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from 'next';
+import { Suspense } from 'react';
+import { NavProgress } from '@/components/NavProgress';
 import '@fontsource-variable/inter/wght.css';
 import './globals.css';
 
@@ -33,6 +35,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body>
+        <Suspense fallback={null}>
+          <NavProgress />
+        </Suspense>
         <a className="skip-link" href="#main">
           Skip to content
         </a>
