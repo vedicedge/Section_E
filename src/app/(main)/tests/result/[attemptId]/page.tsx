@@ -36,7 +36,7 @@ export default async function ResultPage({ params }: { params: Promise<{ attempt
   if (!quiz) notFound();
   const r = attempt.result;
   const pct = r.maxScore > 0 ? Math.round((Math.max(0, r.score) / r.maxScore) * 100) : 0;
-  const reviewOpen = quiz.showAnswers === 'after_submit' || (quiz.showAnswers === 'after_close' && quiz.phase === 'closed');
+  const reviewOpen = quiz.showAnswers === 'after_each' || quiz.showAnswers === 'after_submit' || (quiz.showAnswers === 'after_close' && quiz.phase === 'closed');
   const byId = new Map(questions.map((q) => [q.id, q]));
   const canRetake = quiz.phase === 'live' && (quiz.maxAttempts === 0 || all.length < quiz.maxAttempts);
 

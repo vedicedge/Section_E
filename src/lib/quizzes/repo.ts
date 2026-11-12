@@ -21,7 +21,8 @@ export interface QuizRecord {
   maxAttempts: number;
   shuffleQuestions: boolean;
   shuffleOptions: boolean;
-  showAnswers: 'after_submit' | 'after_close' | 'never';
+  /** 'after_each' = instant feedback: each answer is revealed (and locked) as soon as the student checks it. */
+  showAnswers: 'after_each' | 'after_submit' | 'after_close' | 'never';
   negativeMarking: number;
   publishedAt: string | null;
   updatedAt: string;
@@ -202,6 +203,8 @@ export interface AttemptRecord {
   autoSubmitted: boolean;
   questionOrder: { id: string; options: string[] }[];
   answers: Record<string, string[]>;
+  /** Instant-feedback quizzes: answers already checked, which can no longer change. */
+  revealed: Record<string, string[]>;
   flagged: string[];
   score: number | null;
   maxScore: number | null;
@@ -218,6 +221,7 @@ interface AttemptRow {
   auto_submitted: boolean;
   question_order: AttemptRecord['questionOrder'];
   answers: Record<string, string[]>;
+  revealed: Record<string, string[]> | null;
   flagged: string[];
   score: number | null;
   max_score: number | null;
@@ -235,6 +239,7 @@ function toAttempt(r: AttemptRow): AttemptRecord {
     autoSubmitted: r.auto_submitted,
     questionOrder: r.question_order,
     answers: r.answers ?? {},
+    revealed: r.revealed ?? {},
     flagged: r.flagged ?? [],
     score: r.score === null ? null : Number(r.score),
     maxScore: r.max_score === null ? null : Number(r.max_score),
@@ -284,7 +289,8 @@ export async function finalizeAttempt(attemptId: string, opts: { answers?: Recor
 
     const late = expired(attempt);
     // Answers sent after the deadline are ignored; the last autosave inside the window counts.
-    const answers = !late && opts.answers ? opts.answers : attempt.answers;
+    // An answer that was already checked (instant feedback) is final, whatever the browser sends.
+    const answers = { ...(!late && opts.answers ? opts.answers : attempt.answers), ...attempt.revealed };
     const flagged = !late && opts.flagged ? opts.flagged : attempt.flagged;
     const quiz = await tx.query<{ negative_marking: number }>('SELECT negative_marking FROM quizzes WHERE id = $1', [attempt.quizId]);
     const questions = await tx.query<{ id: string; correct: string[]; points: number }>(
@@ -357,8 +363,57 @@ export async function saveProgress(attempt: AttemptRecord, answers: Record<strin
     if (picked.length) clean[qid] = picked;
   }
   const flags = flagged.filter((f) => allowed.has(f));
-  await query('UPDATE quiz_attempts SET answers = $2::jsonb, flagged = $3::jsonb WHERE id = $1 AND submitted_at IS NULL', [attempt.id, json(clean), json(flags)]);
-  return { answers: clean, flagged: flags };
+  // "|| revealed" keeps checked answers locked even if an older autosave arrives after the check.
+  await query('UPDATE quiz_attempts SET answers = $2::jsonb || revealed, flagged = $3::jsonb WHERE id = $1 AND submitted_at IS NULL', [
+    attempt.id,
+    json(clean),
+    json(flags),
+  ]);
+  return { answers: { ...clean, ...attempt.revealed }, flagged: flags };
+}
+
+export interface Reveal {
+  chosen: string[];
+  correct: string[];
+  explanation: string;
+}
+
+/**
+ * Instant feedback: locks the student's answer to one question and returns the correct answer with
+ * its explanation. Checking the same question again returns the first, locked answer.
+ */
+export async function revealAnswer(attemptId: string, rollNo: string, questionId: string, chosen: string[]): Promise<Reveal> {
+  return transaction(async (tx) => {
+    const { rows } = await tx.query<AttemptRow>('SELECT * FROM quiz_attempts WHERE id = $1 FOR UPDATE', [attemptId]);
+    const attempt = rows[0] ? toAttempt(rows[0]) : null;
+    if (!attempt || attempt.rollNo !== rollNo) throw new HttpError(404, 'Attempt not found.', 'not_found');
+    if (attempt.submittedAt) throw new HttpError(409, 'This attempt was already submitted.', 'submitted');
+    if (expired(attempt)) throw new HttpError(409, 'Time is up.', 'time_up');
+    const quiz = await tx.query<{ show_answers: string }>('SELECT show_answers FROM quizzes WHERE id = $1', [attempt.quizId]);
+    if (quiz.rows[0]?.show_answers !== 'after_each') throw new HttpError(409, 'This test shows answers at the end.', 'not_instant');
+    const slot = attempt.questionOrder.find((q) => q.id === questionId);
+    if (!slot) throw new HttpError(404, 'That question is not part of this attempt.', 'not_found');
+    const question = await tx.query<{ correct: string[]; explanation: string | null; multiple: boolean }>(
+      'SELECT correct, explanation, multiple FROM quiz_questions WHERE id = $1 AND quiz_id = $2',
+      [questionId, attempt.quizId],
+    );
+    const q = question.rows[0];
+    if (!q) throw new HttpError(404, 'That question no longer exists.', 'not_found');
+
+    let locked = attempt.revealed[questionId];
+    if (!locked) {
+      const picked = [...new Set(chosen)].filter((o) => slot.options.includes(o));
+      if (!picked.length) throw new HttpError(422, 'Choose an answer first.', 'no_answer');
+      if (!q.multiple && picked.length > 1) throw new HttpError(422, 'This question takes one answer.', 'too_many');
+      locked = picked;
+      await tx.query(
+        `UPDATE quiz_attempts SET revealed = revealed || jsonb_build_object($2::text, $3::jsonb), answers = answers || jsonb_build_object($2::text, $3::jsonb)
+         WHERE id = $1`,
+        [attemptId, questionId, json(locked)],
+      );
+    }
+    return { chosen: locked, correct: q.correct, explanation: q.explanation ?? '' };
+  });
 }
 
 export async function resultsForQuiz(quizId: string) {

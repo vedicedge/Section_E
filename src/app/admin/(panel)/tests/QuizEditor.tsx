@@ -37,7 +37,7 @@ export interface EditorInitial {
   maxAttempts: number;
   shuffleQuestions: boolean;
   shuffleOptions: boolean;
-  showAnswers: 'after_submit' | 'after_close' | 'never';
+  showAnswers: 'after_each' | 'after_submit' | 'after_close' | 'never';
   negativeMarking: number;
   questions: Omit<EditorQuestion, 'key'>[];
   attempts: number;
@@ -299,6 +299,7 @@ export function QuizEditor({ initial, subjects, flash }: { initial: EditorInitia
           <label className="field">
             <span>Show correct answers</span>
             <select className="select" value={showAnswers} onChange={(e) => (touch(), setShowAnswers(e.target.value as typeof showAnswers))}>
+              <option value="after_each">After each question (instant feedback)</option>
               <option value="after_submit">Right after submitting</option>
               <option value="after_close">After the test closes</option>
               <option value="never">Never (score only)</option>

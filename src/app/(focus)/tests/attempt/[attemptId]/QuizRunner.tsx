@@ -13,6 +13,13 @@ export interface RunnerQuestion {
   points: number;
 }
 
+/** Instant feedback: what the server told us after a question was checked. */
+export interface RunnerReveal {
+  chosen: string[];
+  correct: string[];
+  explanation: string;
+}
+
 type Answers = Record<string, string[]>;
 type SaveState = 'saved' | 'saving' | 'unsaved' | 'offline';
 
@@ -36,6 +43,9 @@ export function QuizRunner(props: {
   initialAnswers: Answers;
   initialFlagged: string[];
   negativeMarking: number;
+  /** Instant feedback: each answer is checked, revealed and locked one question at a time. */
+  instant?: boolean;
+  initialRevealed?: Record<string, RunnerReveal>;
 }) {
   const { attemptId, questions, deadlineAt } = props;
   const router = useRouter();
@@ -50,6 +60,9 @@ export function QuizRunner(props: {
   const [error, setError] = useState<string | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
+  const instant = Boolean(props.instant);
+  const [revealed, setRevealed] = useState<Record<string, RunnerReveal>>(props.initialRevealed ?? {});
+  const [checking, setChecking] = useState(false);
 
   const offset = useRef(0);
   const dirty = useRef(false);
@@ -189,8 +202,42 @@ export function QuizRunner(props: {
   const answeredCount = questions.filter((x) => answers[x.id]?.length).length;
   const unanswered = questions.length - answeredCount;
 
+  const reveal = revealed[q.id] ?? null;
+  const isRight = (r: RunnerReveal) => r.chosen.length === r.correct.length && r.chosen.every((c) => r.correct.includes(c));
+
+  // Instant feedback: lock this answer on the server and show the correct one.
+  const check = useCallback(async () => {
+    const picked = latest.current.answers[q.id] ?? [];
+    if (!instant || revealed[q.id] || !picked.length || checking || submitted.current) return;
+    setChecking(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/attempts/${attemptId}/check`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questionId: q.id, chosen: picked }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.status === 409 && data?.error?.code !== 'not_instant') {
+        // Time ran out, or the attempt was submitted in another tab.
+        submitted.current = true;
+        router.replace(`/tests/result/${attemptId}`);
+        return;
+      }
+      if (!res.ok) throw new Error(data?.error?.message ?? 'Could not check the answer.');
+      const r = data as RunnerReveal;
+      setRevealed((prev) => ({ ...prev, [q.id]: r }));
+      setAnswers((prev) => ({ ...prev, [q.id]: r.chosen }));
+    } catch (e) {
+      setError(`${(e as Error).message} Check your connection and try again.`);
+    } finally {
+      setChecking(false);
+    }
+  }, [attemptId, checking, instant, q.id, revealed, router]);
+
   const choose = useCallback(
     (optionId: string) => {
+      if (revealed[q.id]) return; // checked answers are final
       dirty.current = true;
       setSave('unsaved');
       setAnswers((prev) => {
@@ -201,7 +248,7 @@ export function QuizRunner(props: {
         return { ...prev, [q.id]: next };
       });
     },
-    [q],
+    [q, revealed],
   );
 
   const toggleFlag = useCallback(() => {
@@ -229,13 +276,16 @@ export function QuizRunner(props: {
       if (pick >= 0 && pick < q.options.length) {
         e.preventDefault();
         choose(q.options[pick]!.id);
+      } else if (e.key === 'Enter' && instant && !revealed[q.id] && target.tagName !== 'BUTTON') {
+        e.preventDefault();
+        check();
       } else if (e.key === 'ArrowRight') go(index + 1);
       else if (e.key === 'ArrowLeft') go(index - 1);
       else if (key === 'F') toggleFlag();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [q, index, choose, go, toggleFlag, confirming]);
+  }, [q, index, choose, go, toggleFlag, confirming, instant, revealed, check]);
 
   useEffect(() => {
     const d = dialogRef.current;
@@ -307,21 +357,42 @@ export function QuizRunner(props: {
           <div className={styles.options} role={q.multiple ? 'group' : 'radiogroup'} aria-labelledby="q-prompt">
             {q.options.map((o, i) => {
               const on = chosen.includes(o.id);
+              const right = reveal?.correct.includes(o.id);
+              const wrong = reveal && on && !right;
               return (
                 <button
                   key={o.id}
                   type="button"
                   role={q.multiple ? 'checkbox' : 'radio'}
                   aria-checked={on}
-                  className={`${styles.option} ${on ? styles.optionOn : ''}`}
+                  aria-disabled={reveal ? true : undefined}
+                  className={`${styles.option} ${reveal ? styles.optionLocked : ''} ${reveal ? (right ? styles.optionRight : wrong ? styles.optionWrong : '') : on ? styles.optionOn : ''}`}
                   onClick={() => choose(o.id)}
                 >
                   <span className={styles.letter}>{LETTERS[i]}</span>
                   <span className={styles.optionText}>{o.text}</span>
+                  {reveal && (right || on) && (
+                    <span className={styles.optionTag}>{right ? (on ? 'Your answer · Correct' : 'Correct answer') : 'Your answer'}</span>
+                  )}
                 </button>
               );
             })}
           </div>
+
+          {instant && !reveal && (
+            <div className={styles.checkRow}>
+              <button className="btn btn--accent" onClick={check} disabled={!chosen.length || checking}>
+                {checking ? 'Checking…' : 'Check answer'}
+              </button>
+              <span className="hint">{chosen.length ? 'Once checked, this answer is final.' : 'Pick an answer, then check it.'}</span>
+            </div>
+          )}
+          {reveal && (
+            <div className={`${styles.feedback} ${isRight(reveal) ? styles.feedbackRight : styles.feedbackWrong}`} role="status">
+              <p className={styles.feedbackTitle}>{isRight(reveal) ? 'Correct' : 'Not quite'}</p>
+              {reveal.explanation && <p className={styles.feedbackText}>{reveal.explanation}</p>}
+            </div>
+          )}
 
           <div className={styles.controls}>
             <button className="btn btn--ghost" onClick={() => go(index - 1)} disabled={index === 0}>
@@ -340,7 +411,9 @@ export function QuizRunner(props: {
               </button>
             )}
           </div>
-          <p className={styles.keys}>Keyboard: A–{LETTERS[q.options.length - 1]} to answer · ← → to move · F to flag</p>
+          <p className={styles.keys}>
+            Keyboard: A–{LETTERS[q.options.length - 1]} to answer{instant ? ' · Enter to check' : ''} · ← → to move · F to flag
+          </p>
           {error && (
             <p className="notice" role="alert">
               {error}
@@ -361,13 +434,15 @@ export function QuizRunner(props: {
               {questions.map((x, i) => {
                 const done = Boolean(answers[x.id]?.length);
                 const flag = flagged.includes(x.id);
+                const seen = revealed[x.id];
+                const mark = seen ? (isRight(seen) ? styles.navRight : styles.navWrong) : '';
                 return (
                   <li key={x.id}>
                     <button
                       type="button"
                       onClick={() => go(i)}
-                      className={`${styles.navItem} ${done ? styles.navDone : ''} ${flag ? styles.navFlag : ''} ${i === index ? styles.navCurrent : ''}`}
-                      aria-label={`Question ${i + 1}${done ? ', answered' : ', not answered'}${flag ? ', flagged' : ''}`}
+                      className={`${styles.navItem} ${done ? styles.navDone : ''} ${mark} ${flag ? styles.navFlag : ''} ${i === index ? styles.navCurrent : ''}`}
+                      aria-label={`Question ${i + 1}${seen ? (isRight(seen) ? ', correct' : ', wrong') : done ? ', answered' : ', not answered'}${flag ? ', flagged' : ''}`}
                       aria-current={i === index ? 'step' : undefined}
                     >
                       {i + 1}
@@ -410,6 +485,9 @@ export function QuizRunner(props: {
           </div>
         </dl>
         {unanswered > 0 && <p className="hint">You still have {unanswered} unanswered question{unanswered === 1 ? '' : 's'}.</p>}
+        {instant && answeredCount > Object.keys(revealed).length && (
+          <p className="hint">Answers you picked but didn’t check will still be marked.</p>
+        )}
         <p className="hint">Once submitted, answers can’t be changed.</p>
         <div className={styles.dialogActions}>
           <button className="btn btn--ghost" onClick={() => setConfirming(false)} disabled={submitting}>

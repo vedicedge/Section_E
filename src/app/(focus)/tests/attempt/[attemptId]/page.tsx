@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getStudent } from '@/lib/session';
 import { finalizeAttempt, getAttempt, getQuestions, getQuiz, GRACE_SECONDS } from '@/lib/quizzes/repo';
-import { QuizRunner, type RunnerQuestion } from './QuizRunner';
+import { QuizRunner, type RunnerQuestion, type RunnerReveal } from './QuizRunner';
 
 export const metadata: Metadata = { title: 'Mock test in progress' };
 export const dynamic = 'force-dynamic';
@@ -22,7 +22,16 @@ export default async function AttemptPage({ params }: { params: Promise<{ attemp
   const [quiz, questions] = await Promise.all([getQuiz(attempt.quizId), getQuestions(attempt.quizId)]);
   if (!quiz) notFound();
   const byId = new Map(questions.map((q) => [q.id, q]));
-  // Correct answers never leave the server while the attempt is open.
+  // Correct answers never leave the server while the attempt is open — except, in an instant-feedback
+  // quiz, for questions the student has already checked (those answers are locked).
+  const instant = quiz.showAnswers === 'after_each';
+  const revealed: Record<string, RunnerReveal> = {};
+  if (instant) {
+    for (const [qid, chosen] of Object.entries(attempt.revealed)) {
+      const q = byId.get(qid);
+      if (q) revealed[qid] = { chosen, correct: q.correct, explanation: q.explanation };
+    }
+  }
   const ordered: RunnerQuestion[] = attempt.questionOrder.flatMap((o) => {
     const q = byId.get(o.id);
     if (!q) return [];
@@ -41,6 +50,8 @@ export default async function AttemptPage({ params }: { params: Promise<{ attemp
       initialAnswers={attempt.answers}
       initialFlagged={attempt.flagged}
       negativeMarking={quiz.negativeMarking}
+      instant={instant}
+      initialRevealed={revealed}
     />
   );
 }
