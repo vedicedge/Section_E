@@ -8,6 +8,7 @@ import { heroHearts } from '@/lib/attendance/repo';
 import { countLiveQuizzes } from '@/lib/quizzes/repo';
 import { openHomeworkCount } from '@/lib/homework/repo';
 import { countStudyMaterials } from '@/lib/study';
+import { myGroups } from '@/lib/groups/repo';
 import { Reveal } from '@/components/Reveal';
 import { TodayInE, TodaySkeleton } from './TodayInE';
 import styles from './page.module.css';
@@ -71,6 +72,13 @@ const ICONS = {
       <path d="M18 9c-3-2.4-7.4-3-12-3v21c4.6 0 9 .6 12 3 3-2.4 7.4-3 12-3V6c-4.6 0-9 .6-12 3zM18 9v21" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
     </svg>
   ),
+  groups: (
+    <svg width="36" height="36" viewBox="0 0 36 36" aria-hidden>
+      <circle cx="13" cy="13" r="5" fill="none" stroke="currentColor" strokeWidth="2" />
+      <circle cx="25" cy="15" r="4" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path d="M4 30c0-5 4-9 9-9s9 4 9 9M22 23.5c1-.9 2.3-1.5 3.8-1.5 3.4 0 6.2 2.8 6.2 6.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  ),
   tests: (
     <svg width="36" height="36" viewBox="0 0 36 36" aria-hidden>
       <circle cx="18" cy="20" r="12" fill="none" stroke="currentColor" strokeWidth="2" />
@@ -114,6 +122,8 @@ export default async function Home() {
     studentLoad.then((st) => heroHearts(st?.rollNo ?? null)),
     countStudyMaterials(),
   ]);
+  // A count is not worth failing the landing page over.
+  const groupCount = student ? await myGroups(student.rollNo).then((g) => g.length).catch(() => 0) : 0;
   const first = student?.name.split(' ')[0];
 
   const tools: Tool[] = [
@@ -167,6 +177,13 @@ export default async function Home() {
       title: 'Study material',
       body: 'Notes and videos shared for the section, sorted by subject.',
       stat: studyCount ? plural(studyCount, 'item', 'items') : null,
+    },
+    {
+      key: 'groups',
+      href: '/groups',
+      title: 'My groups',
+      body: 'Your group in each subject and who’s in it with you. Only you see yours.',
+      stat: groupCount ? plural(groupCount, 'subject', 'subjects') : null,
     },
   ];
   const things = HOW_MANY[tools.length] ?? String(tools.length);

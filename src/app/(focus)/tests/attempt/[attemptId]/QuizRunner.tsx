@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import styles from './runner.module.css';
 
 export interface RunnerQuestion {
@@ -329,6 +330,7 @@ export function QuizRunner(props: {
             <span className="tabular">{fmt(remaining)}</span>
           </div>
         )}
+        <ThemeToggle />
         <button className="btn btn--accent btn--sm" onClick={() => setConfirming(true)} disabled={submitting}>
           Submit
         </button>

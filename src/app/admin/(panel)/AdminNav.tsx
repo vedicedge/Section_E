@@ -11,6 +11,7 @@ const LINKS = [
   { href: '/admin/attendance', label: 'Attendance' },
   { href: '/admin/seating', label: 'Seating plans' },
   { href: '/admin/students', label: 'Students' },
+  { href: '/admin/groups', label: 'Groups' },
   { href: '/admin/timetable', label: 'Timetable' },
   { href: '/admin/extras', label: 'Posters, links & study' },
 ];

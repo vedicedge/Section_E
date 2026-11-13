@@ -179,3 +179,35 @@
     display: none;
   }
 }
+
+/* Recovery code + account tools */
+.codeBox {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 16px;
+  border: 1px dashed var(--accent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.code {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-weight: 650;
+  font-size: clamp(22px, 6vw, 28px);
+  letter-spacing: 0.08em;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.note {
+  border-left: 3px solid var(--ink);
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  font-size: 14px;
+}
+.account {
+  display: grid;
+  gap: 32px;
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line, color-mix(in srgb, var(--ink) 14%, transparent));
+}

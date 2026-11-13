@@ -1,4 +1,5 @@
 import 'server-only';
+import { randomInt } from 'node:crypto';
 import { query, queryOne } from './db';
 import { hashSecret, verifySecret } from './crypto';
 import { HttpError } from './http';
@@ -14,6 +15,7 @@ interface StudentRow {
   claimed_at: Date | null;
   session_version: number;
   last_seen_at: Date | null;
+  recovery_hash: string | null;
 }
 
 export async function rosterSize(): Promise<number> {
@@ -45,6 +47,54 @@ export async function verifyStudentPin(rollNo: string, pin: string): Promise<Stu
   if (!(await verifySecret(pin, row.pin_hash))) return null;
   await query('UPDATE students SET last_seen_at = now() WHERE roll_no = $1', [rollNo]);
   return row;
+}
+
+/* ---------------------------------------------------------------- self-service PIN reset */
+
+// No 0/O, 1/I/L: easy to read back from a screenshot or a note. 12 characters ≈ 59 bits.
+const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+
+function newRecoveryCode(): string {
+  let out = '';
+  for (let i = 0; i < 12; i++) out += CODE_ALPHABET[randomInt(CODE_ALPHABET.length)];
+  return `${out.slice(0, 4)}-${out.slice(4, 8)}-${out.slice(8)}`;
+}
+
+/** Upper-cases, drops spaces and dashes, and reads look-alike letters as the digits they stand for. */
+export function normaliseRecoveryCode(input: string): string {
+  return input.toUpperCase().replace(/[\s-]/g, '').replace(/O/g, '0').replace(/[IL]/g, '1');
+}
+
+/** Gives the student a new recovery code (shown once) and retires any earlier one. */
+export async function issueRecoveryCode(rollNo: string): Promise<string> {
+  const code = newRecoveryCode();
+  const hash = await hashSecret(normaliseRecoveryCode(code));
+  await query('UPDATE students SET recovery_hash = $2, updated_at = now() WHERE roll_no = $1 AND active', [rollNo, hash]);
+  return code;
+}
+
+export async function hasRecoveryCode(rollNo: string): Promise<boolean> {
+  const row = await queryOne<{ has: boolean }>('SELECT recovery_hash IS NOT NULL AS has FROM students WHERE roll_no = $1', [rollNo]);
+  return Boolean(row?.has);
+}
+
+/** Sets a new PIN and signs the student out on every other device (session_version bump). */
+export async function setStudentPin(rollNo: string, pin: string): Promise<StudentRow> {
+  const hash = await hashSecret(pin);
+  const row = await queryOne<StudentRow>(
+    `UPDATE students SET pin_hash = $2, session_version = session_version + 1, last_seen_at = now(), updated_at = now()
+     WHERE roll_no = $1 AND active AND pin_hash IS NOT NULL RETURNING *`,
+    [rollNo, hash],
+  );
+  if (!row) throw new HttpError(409, 'This roll number isn’t registered yet. Register it first.', 'not_claimed');
+  return row;
+}
+
+/** True when the code matches the student's current recovery code. */
+export async function checkRecoveryCode(rollNo: string, codeInput: string): Promise<boolean> {
+  const row = await queryOne<{ recovery_hash: string | null }>('SELECT recovery_hash FROM students WHERE roll_no = $1 AND active', [rollNo]);
+  if (!row?.recovery_hash) return false;
+  return verifySecret(normaliseRecoveryCode(codeInput), row.recovery_hash);
 }
 
 /* ---------------------------------------------------------------- admin */
@@ -90,7 +140,7 @@ export async function resetStudent(roll: string) {
   await removeAllSubscriptions(roll);
   await query(
     `UPDATE students SET pin_hash = NULL, claimed_at = NULL, session_version = session_version + 1,
-       calendar_version = calendar_version + 1, calendar_token_hash = NULL, updated_at = now() WHERE roll_no = $1`,
+       calendar_version = calendar_version + 1, calendar_token_hash = NULL, recovery_hash = NULL, updated_at = now() WHERE roll_no = $1`,
     [roll],
   );
 }
@@ -104,5 +154,6 @@ export async function deleteStudent(roll: string) {
   await removeAllSubscriptions(roll);
   await query('DELETE FROM homework_done WHERE roll_no = $1', [roll]);
   await query('DELETE FROM attendance WHERE roll_no = $1', [roll]);
+  await query('DELETE FROM group_members WHERE roll_no = $1', [roll]);
   await query('DELETE FROM students WHERE roll_no = $1', [roll]);
 }

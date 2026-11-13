@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { getStudent } from '@/lib/session';
+import { hasRecoveryCode } from '@/lib/students';
 import { Pavilion } from '@/components/Engravings';
+import { AccountTools } from './AccountTools';
 import { RegisterFlow } from './RegisterFlow';
 import { SignOutButton } from './SignOutButton';
 import styles from './register.module.css';
@@ -18,6 +20,7 @@ function safeNext(next: string | string[] | undefined): string {
 export default async function RegisterPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const [student, params] = await Promise.all([getStudent(), searchParams]);
   const next = safeNext(params.next);
+  const recovery = student ? await hasRecoveryCode(student.rollNo) : false;
 
   return (
     <div className={`container page ${styles.wrap}`}>
@@ -38,7 +41,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
             <span>02</span> The PIN stops anyone else from opening your seat or your test results.
           </li>
           <li>
-            <span>03</span> Forgot it? The admin can reset your registration.
+            <span>03</span> Forgot it? Reset it yourself with the recovery code you get when you register, or change it from any device you’re still signed in on.
           </li>
         </ul>
         <Pavilion className={styles.art} />
@@ -56,6 +59,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
               </Link>
               <SignOutButton />
             </div>
+            <AccountTools hasRecovery={recovery} />
           </div>
         ) : (
           <RegisterFlow next={next} />

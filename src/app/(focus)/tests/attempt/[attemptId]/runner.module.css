@@ -8,7 +8,10 @@
   top: 0;
   z-index: 10;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  /* Title, then timer (timed tests only), theme switch and Submit, each as wide as it needs. */
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: auto;
   align-items: center;
   gap: 18px;
   padding: 12px var(--gutter);
@@ -503,4 +506,30 @@
   background: var(--accent);
   border-color: var(--accent);
   color: var(--paper);
+}
+
+@media (max-width: 520px) {
+  .bar {
+    gap: 10px;
+  }
+  /* The bar also holds the theme switch now: keep the title and save line to one line each. */
+  .barLeft > div {
+    min-width: 0;
+  }
+  .save {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+@media (max-width: 360px) {
+  .bar {
+    gap: 8px;
+  }
+  .barLeft {
+    gap: 8px;
+  }
+  .timer {
+    font-size: 24px;
+  }
 }
