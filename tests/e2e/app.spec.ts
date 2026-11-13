@@ -19,6 +19,8 @@ async function signIn(page: Page, roll: string, pin: string) {
   await expect(page).toHaveURL(/\/seat/);
 }
 
+let recoveryCode = '';
+
 async function register(page: Page, roll: string, pin: string) {
   await page.goto('/register');
   await page.getByLabel('College roll number').fill(roll);
@@ -27,6 +29,10 @@ async function register(page: Page, roll: string, pin: string) {
   await page.getByLabel('Choose a 4-digit PIN').fill(pin);
   await page.getByLabel('Repeat the PIN').fill(pin);
   await page.getByRole('button', { name: /register/i }).click();
+  // The recovery code is shown once, before moving on.
+  await expect(page.getByText('Your recovery code')).toBeVisible();
+  recoveryCode = (await page.getByText(/^[2-9A-Z]{4}-[2-9A-Z]{4}-[2-9A-Z]{4}$/).textContent())!.trim();
+  await page.getByRole('button', { name: /saved it, continue/ }).click();
   await expect(page).toHaveURL(/\/seat/);
 }
 
@@ -85,6 +91,52 @@ test.describe.serial('Section E', () => {
     await other.getByRole('button', { name: 'Sign in' }).click();
     await expect(other.getByText(/PIN doesn’t match/)).toBeVisible();
     await other.close();
+  });
+
+  test('a student resets a forgotten PIN without the admin', async ({ page, browser }) => {
+    expect(recoveryCode).toMatch(/^[2-9A-Z]{4}-[2-9A-Z]{4}-[2-9A-Z]{4}$/);
+    // Signed out everywhere: the roll number plus the recovery code sets a new PIN.
+    const other = await browser.newPage();
+    await other.goto('/register');
+    await other.getByLabel('College roll number').fill('26PGDM902');
+    await other.getByRole('button', { name: 'Continue' }).click();
+    await other.getByRole('button', { name: 'Forgot PIN?' }).click();
+    await other.getByLabel('Recovery code').fill('AAAA-BBBB-CCCC');
+    await other.getByLabel('New 4-digit PIN').fill('1357');
+    await other.getByLabel('Repeat the new PIN').fill('1357');
+    await other.getByRole('button', { name: 'Set new PIN and sign in' }).click();
+    await expect(other.getByText(/recovery code doesn’t match/)).toBeVisible();
+    // Typing it in lower case with spaces still works.
+    await other.getByLabel('Recovery code').fill(recoveryCode.toLowerCase().replace(/-/g, ' '));
+    await other.getByRole('button', { name: 'Set new PIN and sign in' }).click();
+    await expect(other.getByText(/^New PIN set,/)).toBeVisible();
+    const fresh = (await other.getByText(/^[2-9A-Z]{4}-[2-9A-Z]{4}-[2-9A-Z]{4}$/).textContent())!.trim();
+    expect(fresh).not.toBe(recoveryCode);
+    await other.getByRole('button', { name: /saved it, continue/ }).click();
+    await expect(other).toHaveURL(/\/seat/);
+
+    // The registration device was signed out by the reset, and the old code is used up.
+    await page.goto('/register');
+    await expect(page.getByLabel('College roll number')).toBeVisible();
+    const res = await page.request.post('/api/auth/recover', {
+      data: { rollNo: '26PGDM902', code: recoveryCode, pin: '9999' },
+      headers: { Origin: 'http://localhost:3200' },
+    });
+    expect(res.status()).toBe(401);
+
+    // Still signed in on the other device: change the PIN there, no old PIN needed.
+    await other.goto('/register');
+    await expect(other.getByText('Registered on this device')).toBeVisible();
+    await expect(other.getByText(/You have one/)).toBeVisible();
+    await other.getByLabel('New 4-digit PIN').fill('2468');
+    await other.getByLabel('Repeat the new PIN').fill('2468');
+    await other.getByRole('button', { name: 'Change PIN' }).click();
+    await expect(other.getByText(/PIN changed/)).toBeVisible();
+    await other.reload();
+    await expect(other.getByText('Registered on this device')).toBeVisible();
+    await other.close();
+
+    await signIn(page, '26PGDM902', '2468');
   });
 
   test('a student sees only their own seat', async ({ page }) => {
@@ -541,5 +593,41 @@ test.describe.serial('Section E', () => {
     await visitor.reload();
     await expect(visitor.getByRole('dialog')).toHaveCount(0);
     await visitor.close();
+
+    // Subject groups: the admin pastes a list (still signed in; the suite's admin sign-ins are rate limited).
+    await page.goto('/admin/groups');
+    await page.getByLabel('Subject').fill('CF');
+    await page.getByLabel('Title (optional)').fill('Project groups');
+    await page
+      .getByLabel('…or paste the list')
+      .fill(['Roll No\tGroup\tTopic', '26PGDM901\t1\tTata Steel', '26PGDM902\t\t', '26PGDM903\t2\tInfosys', '26PGDM999\t2\t'].join('\n'));
+    await page.getByRole('button', { name: 'Preview' }).click();
+    await expect(page.getByText('2 groups, 4 roll numbers')).toBeVisible();
+    await expect(page.getByText(/Not on the roster.*26PGDM999/)).toBeVisible();
+    await page.getByRole('button', { name: 'Save 2 groups' }).click();
+    await expect(page.getByText(/Saved CF · Project groups: 2 groups, 3 students/)).toBeVisible();
+    await expect(page.getByText('CF · Project groups', { exact: true })).toBeVisible();
+
+    // Topics handed out later go up on their own and land on the matching groups.
+    await page.getByLabel('Subject').fill('CF');
+    await page.getByLabel('Title (optional)').fill('Project groups');
+    await page.getByLabel('…or paste the list').fill(['Group\tTopic', '1\tSteel sector strategy', '7\tNobody'].join('\n'));
+    await page.getByRole('button', { name: 'Preview' }).click();
+    await expect(page.getByText(/Not in that list.*Group 7/)).toBeVisible();
+    await page.getByRole('button', { name: 'Save 1 topic' }).click();
+    await expect(page.getByText(/Added topics to 1 group /)).toBeVisible();
+
+    // A student sees only their own group and its members. (The poster above pops up once per visit.)
+    const member = await browser.newPage();
+    await member.goto('/register');
+    await member.getByRole('button', { name: 'Close' }).click();
+    await signIn(member, '26PGDM902', '2468');
+    await member.goto('/groups');
+    const card = member.getByRole('region', { name: 'Group 1' });
+    await expect(card).toContainText('Steel sector strategy');
+    await expect(card).toContainText('26PGDM901');
+    await expect(card).toContainText('26PGDM902');
+    expect(await member.content()).not.toContain('26PGDM903');
+    await member.close();
   });
 });

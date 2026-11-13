@@ -16,6 +16,11 @@ const nextConfig: NextConfig = {
     return [
       { source: '/:path*', headers: securityHeaders },
       {
+        // Self-hosted fonts: the version is in the path, so a file never changes once published.
+        source: '/fonts/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+      },
+      {
         // The reminders service worker must always be fresh and may control the whole site.
         source: '/sw.js',
         headers: [

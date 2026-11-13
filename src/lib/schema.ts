@@ -238,4 +238,28 @@ export const MIGRATIONS: string[] = [
   ALTER TABLE quizzes ADD CONSTRAINT quizzes_show_answers_check CHECK (show_answers IN ('after_each', 'after_submit', 'after_close', 'never'));
   ALTER TABLE quiz_attempts ADD COLUMN revealed JSONB NOT NULL DEFAULT '{}';
   `,
+
+  // 9 — self-service PIN reset: a one-time recovery code per student (only its hash is kept).
+  `
+  ALTER TABLE students ADD COLUMN recovery_hash TEXT;
+  `,
+
+  // 10 — subject groups: one list per subject (uploaded by the admin); a student sees only their own group.
+  `
+  CREATE TABLE group_sets (
+    id         TEXT PRIMARY KEY,
+    subject    TEXT NOT NULL,
+    title      TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE TABLE group_members (
+    set_id     TEXT NOT NULL REFERENCES group_sets(id) ON DELETE CASCADE,
+    roll_no    TEXT NOT NULL,
+    group_name TEXT NOT NULL,
+    topic      TEXT,
+    PRIMARY KEY (set_id, roll_no)
+  );
+  CREATE INDEX group_members_roll_idx ON group_members (roll_no);
+  `,
 ];

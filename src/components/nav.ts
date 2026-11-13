@@ -12,5 +12,6 @@ export function navLinks(timetable: boolean, attendance: boolean): NavLink[] {
     ...(attendance ? [{ href: '/attendance', label: 'Attendance' }] : []),
     { href: '/tests', label: 'Mock tests' },
     { href: '/study', label: 'Study material' },
+    { href: '/groups', label: 'My groups' },
   ];
 }

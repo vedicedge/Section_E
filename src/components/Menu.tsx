@@ -126,9 +126,14 @@ export function MenuButton({ student, links, dueTomorrow }: Props) {
             </p>
             <div className={styles.footActions}>
               {student ? (
-                <button type="button" className="btn btn--ghost btn--sm" onClick={signOut}>
-                  Sign out
-                </button>
+                <>
+                  <Link className="btn btn--ghost btn--sm" href="/register?next=/">
+                    Change PIN
+                  </Link>
+                  <button type="button" className="btn btn--ghost btn--sm" onClick={signOut}>
+                    Sign out
+                  </button>
+                </>
               ) : (
                 <Link className="btn btn--accent btn--sm" href="/register">
                   Register
