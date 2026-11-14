@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { api } from '@/lib/client-api';
 import { RecoveryCode } from './RecoveryCode';
+import { PinInput } from './PinInput';
 import styles from './register.module.css';
 
 /** For a signed-in student: change the PIN (no old PIN needed) and get a recovery code. */
@@ -49,31 +50,11 @@ export function AccountTools({ hasRecovery }: { hasRecovery: boolean }) {
         </div>
         <label className="field">
           <span>New 4-digit PIN</span>
-          <input
-            className={`input ${styles.pin}`}
-            type="password"
-            inputMode="numeric"
-            autoComplete="new-password"
-            pattern="\d{4}"
-            maxLength={4}
-            value={pin}
-            onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-            required
-          />
+          <PinInput autoComplete="new-password" value={pin} onChange={setPin} />
         </label>
         <label className="field">
           <span>Repeat the new PIN</span>
-          <input
-            className={`input ${styles.pin}`}
-            type="password"
-            inputMode="numeric"
-            autoComplete="new-password"
-            pattern="\d{4}"
-            maxLength={4}
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value.replace(/\D/g, ''))}
-            required
-          />
+          <PinInput autoComplete="new-password" value={confirm} onChange={setConfirm} />
         </label>
         <button className="btn btn--accent btn--block" disabled={busy}>
           {busy ? 'Saving…' : 'Change PIN'}

@@ -69,10 +69,6 @@ export async function removeSubscription(endpoint: string, rollNo: string) {
   await query('DELETE FROM push_subscriptions WHERE endpoint = $1 AND roll_no = $2', [endpoint, rollNo]);
 }
 
-export async function hasSubscription(endpoint: string, rollNo: string): Promise<boolean> {
-  return Boolean(await queryOne('SELECT 1 FROM push_subscriptions WHERE endpoint = $1 AND roll_no = $2', [endpoint, rollNo]));
-}
-
 /** Subscriptions only count (and only receive pushes) while their student is on the active roster. */
 const ACTIVE = 'JOIN students st ON st.roll_no = ps.roll_no AND st.active';
 
@@ -134,23 +130,27 @@ export async function sendPush(rolls: string[] | 'all', payload: PushPayload): P
           : Promise.reject(Object.assign(new Error('Not a push service endpoint.'), { statusCode: 410 })),
       ),
     );
+    const sent: string[] = [];
+    const gone: string[] = [];
+    const failed: string[] = [];
     for (const [k, outcome] of outcomes.entries()) {
-      const sub = batch[k]!;
-      if (outcome.status === 'fulfilled') {
-        result.sent++;
-        await query('UPDATE push_subscriptions SET last_sent_at = now(), failures = 0 WHERE endpoint = $1', [sub.endpoint]);
-        continue;
-      }
-      const status = (outcome.reason as { statusCode?: number })?.statusCode;
-      if (status === 404 || status === 410) {
-        result.removed++;
-        await query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]);
-      } else {
-        result.failed++;
-        await query('UPDATE push_subscriptions SET failures = failures + 1 WHERE endpoint = $1', [sub.endpoint]);
-        await query('DELETE FROM push_subscriptions WHERE endpoint = $1 AND failures > 8', [sub.endpoint]);
+      const { endpoint } = batch[k]!;
+      if (outcome.status === 'fulfilled') sent.push(endpoint);
+      else {
+        const status = (outcome.reason as { statusCode?: number })?.statusCode;
+        (status === 404 || status === 410 ? gone : failed).push(endpoint);
       }
     }
+    // One write per outcome kind for the whole batch, instead of one per device.
+    if (sent.length) await query('UPDATE push_subscriptions SET last_sent_at = now(), failures = 0 WHERE endpoint = ANY($1::text[])', [sent]);
+    if (gone.length) await query('DELETE FROM push_subscriptions WHERE endpoint = ANY($1::text[])', [gone]);
+    if (failed.length) {
+      await query('UPDATE push_subscriptions SET failures = failures + 1 WHERE endpoint = ANY($1::text[])', [failed]);
+      await query('DELETE FROM push_subscriptions WHERE endpoint = ANY($1::text[]) AND failures > 8', [failed]);
+    }
+    result.sent += sent.length;
+    result.removed += gone.length;
+    result.failed += failed.length;
   }
   return result;
 }

@@ -1,7 +1,7 @@
 import { subjectKey } from '../names';
 import { matchSubject } from '../timetable/match';
 import type { Session } from '../timetable/parse';
-import { addDays, WEEKDAYS } from '../time';
+import { addDays, isoDate as iso, WEEKDAYS } from '../time';
 import { HOMEWORK_LIMITS } from './limits';
 
 /**
@@ -42,13 +42,6 @@ const MONTH_DAY = new RegExp(`\\b${MONTH}\\.?\\s+(\\d{1,2})${ORD}\\b(?:,?\\s*(\\
 const NUMERIC = /\b(\d{1,2})([/.-])(\d{1,2})(?:\2(\d{4}|\d{2}))?\b/;
 const WEEKDAY = /\b(?:by|on|before|till|until|this|next)\s+(mon|tue|wed|thu|fri|sat|sun)[a-z]*\b/i;
 const RELATIVE = /\b(today|tonight|tomorrow)\b/i;
-
-function iso(y: number, m: number, d: number): string | null {
-  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
-  const date = new Date(Date.UTC(y, m - 1, d));
-  if (date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) return null;
-  return date.toISOString().slice(0, 10);
-}
 
 function fullYear(raw: string | undefined): number | null {
   if (!raw) return null;

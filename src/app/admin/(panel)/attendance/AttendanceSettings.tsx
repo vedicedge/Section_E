@@ -163,7 +163,6 @@ export function AttendanceSettings({ initial, updatedAt, plans }: Props) {
   /* ---------------------------------------------------------- derived */
 
   const planInfo = plans.map((p) => ({ ...p, key: subjectKey(p.code), titleKey: subjectKey(p.title) }));
-  const planKeys = new Set(planInfo.map((p) => p.key));
   const rowKeys = draft.rows.map((r) => configKeys({ code: r.code, aliases: aliasList(r.aliases) }));
   const usedKeys = new Set(rowKeys.flat());
   const savedById = new Map(saved.rows.map((r) => [r.id, r]));

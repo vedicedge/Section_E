@@ -17,8 +17,6 @@ import {
 } from '@/lib/attendance/calc';
 
 const rec = (partial: Partial<SubjectRecord> = {}): SubjectRecord => ({ ...EMPTY_RECORD, ...partial });
-const TODAY = '2026-10-22';
-
 describe('requiredOf', () => {
   it('rounds attendance up with integer maths', () => {
     expect(requiredOf(20, 80)).toBe(16);
