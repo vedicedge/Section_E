@@ -60,17 +60,6 @@ function decodeAddress(addr: string): [number, number] {
   return [Number(m[2]) - 1, col - 1];
 }
 
-export function encodeAddress(r: number, c: number): string {
-  let col = '';
-  let n = c + 1;
-  while (n > 0) {
-    const rem = (n - 1) % 26;
-    col = String.fromCharCode(65 + rem) + col;
-    n = Math.floor((n - 1) / 26);
-  }
-  return `${col}${r + 1}`;
-}
-
 function sheetToGrid(ws: ExcelJS.Worksheet): Grid {
   const rowCount = Math.min(ws.rowCount, MAX_ROWS);
   const colCount = Math.min(ws.columnCount, MAX_COLS);

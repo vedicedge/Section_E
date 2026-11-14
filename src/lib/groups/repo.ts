@@ -1,5 +1,5 @@
 import 'server-only';
-import { query, queryOne } from '../db';
+import { query, queryOne, transaction } from '../db';
 import { newId } from '../crypto';
 import { HttpError } from '../http';
 import type { ParsedGroup } from './parse';
@@ -41,6 +41,13 @@ export async function listGroupSets(): Promise<GroupSetSummary[]> {
   }));
 }
 
+/** A list is identified by subject and title, ignoring case ("cf" + "groups" is CF · Groups). */
+const SET_BY_NAME = 'SELECT id FROM group_sets WHERE lower(subject) = lower($1) AND lower(title) = lower($2)';
+
+function findSetId(subject: string, title: string): Promise<string | null> {
+  return queryOne<{ id: string }>(SET_BY_NAME, [subject, title]).then((row) => row?.id ?? null);
+}
+
 /** Which roll numbers are on the active roster, with names (for the preview and for saving). */
 export async function rosterNames(rolls: string[]): Promise<Map<string, string>> {
   if (!rolls.length) return new Map();
@@ -58,35 +65,35 @@ export async function saveGroupSet(input: { subject: string; title: string; grou
   const keep = input.groups.map((g) => ({ ...g, rolls: g.rolls.filter((r) => known.has(r)) })).filter((g) => g.rolls.length);
   if (!keep.length) throw new HttpError(422, 'None of these roll numbers are on the Section E roster, so there is nothing to save.', 'empty');
 
-  const existing = await queryOne<{ id: string }>('SELECT id FROM group_sets WHERE lower(subject) = lower($1) AND lower(title) = lower($2)', [
-    input.subject,
-    input.title,
-  ]);
-  const id = existing?.id ?? newId();
-  if (existing) {
-    await query('UPDATE group_sets SET subject = $2, title = $3, updated_at = now() WHERE id = $1', [id, input.subject, input.title]);
-    await query('DELETE FROM group_members WHERE set_id = $1', [id]);
-  } else {
-    await query('INSERT INTO group_sets (id, subject, title) VALUES ($1, $2, $3)', [id, input.subject, input.title]);
-  }
-  for (const g of keep) {
-    for (const roll of g.rolls) {
-      await query('INSERT INTO group_members (set_id, roll_no, group_name, topic) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING', [
-        id,
-        roll,
-        g.name,
-        g.topic,
-      ]);
+  const members = keep.flatMap((g) => g.rolls.map((roll) => ({ roll, group: g.name, topic: g.topic })));
+  // One transaction: a failed re-upload leaves the old list in place instead of an empty one, and
+  // nobody opening My groups mid-upload sees a half-written list.
+  const { id, existing } = await transaction(async (tx) => {
+    const found = await tx.query<{ id: string }>(`${SET_BY_NAME} FOR UPDATE`, [input.subject, input.title]);
+    const existing = found.rows[0];
+    const id = existing?.id ?? newId();
+    if (existing) {
+      await tx.query('UPDATE group_sets SET subject = $2, title = $3, updated_at = now() WHERE id = $1', [id, input.subject, input.title]);
+      await tx.query('DELETE FROM group_members WHERE set_id = $1', [id]);
+    } else {
+      await tx.query('INSERT INTO group_sets (id, subject, title) VALUES ($1, $2, $3)', [id, input.subject, input.title]);
     }
-  }
+    await tx.query(
+      `INSERT INTO group_members (set_id, roll_no, group_name, topic)
+       SELECT $1, m.roll, m.grp, m.topic FROM unnest($2::text[], $3::text[], $4::text[]) AS m(roll, grp, topic)
+       ON CONFLICT DO NOTHING`,
+      [id, members.map((m) => m.roll), members.map((m) => m.group), members.map((m) => m.topic)],
+    );
+    return { id, existing };
+  });
   return { id, replaced: Boolean(existing), groups: keep.length, students: keep.reduce((n, g) => n + g.rolls.length, 0) };
 }
 
 /** The group names of a list already up, or null when there is no list with this subject and title. */
 export async function existingGroupNames(subject: string, title: string): Promise<string[] | null> {
-  const set = await queryOne<{ id: string }>('SELECT id FROM group_sets WHERE lower(subject) = lower($1) AND lower(title) = lower($2)', [subject, title]);
-  if (!set) return null;
-  const rows = await query<{ group_name: string }>('SELECT DISTINCT group_name FROM group_members WHERE set_id = $1', [set.id]);
+  const setId = await findSetId(subject, title);
+  if (!setId) return null;
+  const rows = await query<{ group_name: string }>('SELECT DISTINCT group_name FROM group_members WHERE set_id = $1', [setId]);
   return rows.map((r) => r.group_name);
 }
 
@@ -95,17 +102,17 @@ export async function existingGroupNames(subject: string, title: string): Promis
  * list that is already up. Groups not mentioned keep their topic.
  */
 export async function setGroupTopics(subject: string, title: string, topics: { name: string; topic: string }[]) {
-  const set = await queryOne<{ id: string }>('SELECT id FROM group_sets WHERE lower(subject) = lower($1) AND lower(title) = lower($2)', [subject, title]);
-  if (!set) throw new HttpError(404, `There is no “${subject} · ${title}” list yet. Upload the groups with roll numbers first.`, 'no_set');
+  const setId = await findSetId(subject, title);
+  if (!setId) throw new HttpError(404, `There is no “${subject} · ${title}” list yet. Upload the groups with roll numbers first.`, 'no_set');
   let matched = 0;
   for (const t of topics) {
     const rows = await query<{ roll_no: string }>(
       'UPDATE group_members SET topic = $3 WHERE set_id = $1 AND lower(group_name) = lower($2) RETURNING roll_no',
-      [set.id, t.name, t.topic],
+      [setId, t.name, t.topic],
     );
     if (rows.length) matched++;
   }
-  await query('UPDATE group_sets SET updated_at = now() WHERE id = $1', [set.id]);
+  await query('UPDATE group_sets SET updated_at = now() WHERE id = $1', [setId]);
   return { matched };
 }
 

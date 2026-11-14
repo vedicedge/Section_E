@@ -139,25 +139,3 @@ export function Locket({ className, title = 'Locket engraving' }: Props) {
     </svg>
   );
 }
-
-/** Laurel sprig — used as a flourish beside headings. */
-export function Laurel({ className, title = 'Laurel engraving' }: Props) {
-  const leaves = Array.from({ length: 7 }, (_, i) => i);
-  return (
-    <svg className={className} viewBox="0 0 140 40" fill="none" role="img" aria-label={title}>
-      <g stroke="currentColor" strokeWidth="1" strokeLinecap="round">
-        <path d="M6 30 C40 22 90 18 134 20" />
-        {leaves.map((i) => {
-          const x = 18 + i * 16;
-          const y = 27 - i * 1.1;
-          return (
-            <g key={i}>
-              <path d={`M${x} ${y} c4 -9 11 -11 16 -11 c-3 6 -9 11 -16 11z`} fill="currentColor" fillOpacity="0.85" />
-              <path d={`M${x + 2} ${y + 1} c6 6 12 7 16 6 c-4 -5 -10 -7 -16 -6z`} />
-            </g>
-          );
-        })}
-      </g>
-    </svg>
-  );
-}

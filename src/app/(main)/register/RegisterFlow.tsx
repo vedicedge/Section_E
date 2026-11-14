@@ -5,6 +5,7 @@ import { useRef, useState } from 'react';
 import { api } from '@/lib/client-api';
 import { forgetReminderOwner } from '@/lib/push-client';
 import { RecoveryCode } from './RecoveryCode';
+import { PinInput } from './PinInput';
 import styles from './register.module.css';
 
 type Step =
@@ -134,32 +135,11 @@ export function RegisterFlow({ next }: { next: string }) {
           </div>
           <label className="field">
             <span>Choose a 4-digit PIN</span>
-            <input
-              ref={pinRef}
-              className={`input ${styles.pin}`}
-              type="password"
-              inputMode="numeric"
-              autoComplete="new-password"
-              pattern="\d{4}"
-              maxLength={4}
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-              required
-            />
+            <PinInput ref={pinRef} autoComplete="new-password" value={pin} onChange={setPin} />
           </label>
           <label className="field">
             <span>Repeat the PIN</span>
-            <input
-              className={`input ${styles.pin}`}
-              type="password"
-              inputMode="numeric"
-              autoComplete="new-password"
-              pattern="\d{4}"
-              maxLength={4}
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value.replace(/\D/g, ''))}
-              required
-            />
+            <PinInput autoComplete="new-password" value={confirm} onChange={setConfirm} />
           </label>
           <button className="btn btn--accent btn--block" disabled={busy}>
             {busy ? 'Saving…' : 'Yes, that’s me — register'}
@@ -179,18 +159,7 @@ export function RegisterFlow({ next }: { next: string }) {
           </div>
           <label className="field">
             <span>Your 4-digit PIN</span>
-            <input
-              ref={pinRef}
-              className={`input ${styles.pin}`}
-              type="password"
-              inputMode="numeric"
-              autoComplete="current-password"
-              pattern="\d{4}"
-              maxLength={4}
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-              required
-            />
+            <PinInput ref={pinRef} autoComplete="current-password" value={pin} onChange={setPin} />
           </label>
           <button className="btn btn--accent btn--block" disabled={busy}>
             {busy ? 'Checking…' : 'Sign in'}
@@ -231,31 +200,11 @@ export function RegisterFlow({ next }: { next: string }) {
           </label>
           <label className="field">
             <span>New 4-digit PIN</span>
-            <input
-              className={`input ${styles.pin}`}
-              type="password"
-              inputMode="numeric"
-              autoComplete="new-password"
-              pattern="\d{4}"
-              maxLength={4}
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-              required
-            />
+            <PinInput autoComplete="new-password" value={pin} onChange={setPin} />
           </label>
           <label className="field">
             <span>Repeat the new PIN</span>
-            <input
-              className={`input ${styles.pin}`}
-              type="password"
-              inputMode="numeric"
-              autoComplete="new-password"
-              pattern="\d{4}"
-              maxLength={4}
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value.replace(/\D/g, ''))}
-              required
-            />
+            <PinInput autoComplete="new-password" value={confirm} onChange={setConfirm} />
           </label>
           <button className="btn btn--accent btn--block" disabled={busy}>
             {busy ? 'Checking…' : 'Set new PIN and sign in'}

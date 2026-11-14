@@ -316,15 +316,9 @@ export async function startAttempt(quizId: string, rollNo: string): Promise<Atte
   if (quiz.phase === 'upcoming') throw new HttpError(409, 'This test has not opened yet.', 'not_open');
   if (quiz.phase === 'closed') throw new HttpError(409, 'This test has closed.', 'closed');
 
-  const attempts = await attemptsFor(quizId, rollNo);
-  for (const a of attempts) {
-    if (a.submittedAt) continue;
-    if (!expired(a)) return a; // resume
-    await finalizeAttempt(a.id, { auto: true });
-  }
-  const used = (await attemptsFor(quizId, rollNo)).length;
-  if (quiz.maxAttempts > 0 && used >= quiz.maxAttempts) {
-    throw new HttpError(409, quiz.maxAttempts === 1 ? 'You have already taken this test.' : `You have used all ${quiz.maxAttempts} attempts.`, 'no_attempts');
+  // Close any attempt whose time ran out first (finalizeAttempt has its own transaction).
+  for (const a of await attemptsFor(quizId, rollNo)) {
+    if (!a.submittedAt && expired(a)) await finalizeAttempt(a.id, { auto: true });
   }
 
   const questions = await getQuestions(quizId);
@@ -340,12 +334,26 @@ export async function startAttempt(quizId: string, rollNo: string): Promise<Atte
   const byClose = quiz.closesAt ? Date.parse(quiz.closesAt) : null;
   const deadline = byDuration && byClose ? Math.min(byDuration, byClose) : (byDuration ?? byClose);
 
-  const id = newId();
-  const row = await queryOne<AttemptRow>(
-    `INSERT INTO quiz_attempts (id, quiz_id, roll_no, deadline_at, question_order) VALUES ($1,$2,$3,$4,$5::jsonb) RETURNING *`,
-    [id, quizId, rollNo, deadline ? new Date(deadline).toISOString() : null, json(order)],
-  );
-  return toAttempt(row!);
+  // Resume-or-insert under a lock on the student's row, so two tabs (or a double tap on a slow
+  // network) can't both pass the attempt limit and start two attempts.
+  return transaction(async (tx) => {
+    await tx.query('SELECT 1 FROM students WHERE roll_no = $1 FOR UPDATE', [rollNo]);
+    const { rows } = await tx.query<AttemptRow>('SELECT * FROM quiz_attempts WHERE quiz_id = $1 AND roll_no = $2 ORDER BY started_at DESC', [
+      quizId,
+      rollNo,
+    ]);
+    const attempts = rows.map(toAttempt);
+    const open = attempts.find((a) => !a.submittedAt && !expired(a));
+    if (open) return open; // resume
+    if (quiz.maxAttempts > 0 && attempts.length >= quiz.maxAttempts) {
+      throw new HttpError(409, quiz.maxAttempts === 1 ? 'You have already taken this test.' : `You have used all ${quiz.maxAttempts} attempts.`, 'no_attempts');
+    }
+    const inserted = await tx.query<AttemptRow>(
+      `INSERT INTO quiz_attempts (id, quiz_id, roll_no, deadline_at, question_order) VALUES ($1,$2,$3,$4,$5::jsonb) RETURNING *`,
+      [newId(), quizId, rollNo, deadline ? new Date(deadline).toISOString() : null, json(order)],
+    );
+    return toAttempt(inserted.rows[0]!);
+  });
 }
 
 export async function saveProgress(attempt: AttemptRecord, answers: Record<string, string[]>, flagged: string[]) {

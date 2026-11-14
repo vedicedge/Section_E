@@ -22,6 +22,14 @@ function parts(date: Date, tz = APP_TZ) {
 }
 
 /** 'YYYY-MM-DD' in the app time zone. */
+/** A real calendar date as 'YYYY-MM-DD', or null for impossible ones such as 31 Feb or month 13. */
+export function isoDate(y: number, m: number, d: number): string | null {
+  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+  const date = new Date(Date.UTC(y, m - 1, d));
+  if (date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) return null;
+  return date.toISOString().slice(0, 10);
+}
+
 export function todayISO(now = new Date()): string {
   const p = parts(now);
   return `${p.year}-${p.month}-${p.day}`;

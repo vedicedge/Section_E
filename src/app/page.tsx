@@ -115,15 +115,15 @@ interface Tool {
 
 export default async function Home() {
   const studentLoad = getStudent();
-  const [s, student, timetable, h, studyCount] = await Promise.all([
+  const [s, student, timetable, h, studyCount, groupCount] = await Promise.all([
     stats(),
     studentLoad,
     timetableEnabled(),
     studentLoad.then((st) => heroHearts(st?.rollNo ?? null)),
     countStudyMaterials(),
+    // A count is not worth failing the landing page over.
+    studentLoad.then((st) => (st ? myGroups(st.rollNo).then((g) => g.length) : 0)).catch(() => 0),
   ]);
-  // A count is not worth failing the landing page over.
-  const groupCount = student ? await myGroups(student.rollNo).then((g) => g.length).catch(() => 0) : 0;
   const first = student?.name.split(' ')[0];
 
   const tools: Tool[] = [

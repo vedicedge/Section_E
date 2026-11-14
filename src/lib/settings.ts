@@ -13,7 +13,3 @@ export async function setSetting<T>(key: string, value: T) {
     [key, json(value)],
   );
 }
-
-export async function deleteSetting(key: string) {
-  await query('DELETE FROM app_settings WHERE key = $1', [key]);
-}

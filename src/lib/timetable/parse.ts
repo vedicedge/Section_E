@@ -1,5 +1,5 @@
 import { resolver, type Grid, type GridCell } from '../grid';
-import { WEEKDAYS, weekdayOf, todayISO } from '../time';
+import { isoDate as iso, WEEKDAYS, weekdayOf, todayISO } from '../time';
 
 /**
  * Heuristic reader for college timetables. It never assumes fixed coordinates; instead it looks for
@@ -91,13 +91,6 @@ function nearestYear(month: number, day: number, today: string): number {
   const candidates = [y - 1, y, y + 1];
   const t = Date.parse(today);
   return candidates.sort((a, b) => Math.abs(Date.UTC(a, month - 1, day) - t) - Math.abs(Date.UTC(b, month - 1, day) - t))[0]!;
-}
-
-function iso(y: number, m: number, d: number): string | null {
-  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  if (dt.getUTCMonth() !== m - 1) return null;
-  return `${y}-${pad(m)}-${pad(d)}`;
 }
 
 export function parseDateText(text: string, today = todayISO()): string | null {

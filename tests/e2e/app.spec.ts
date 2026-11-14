@@ -182,6 +182,15 @@ test.describe.serial('Section E', () => {
 
     await student.goto('/tests');
     await student.getByRole('link', { name: /OLT Mock 1/ }).click();
+    // Two tabs starting at the same moment get the same attempt, never two.
+    await expect(student.getByRole('button', { name: 'Start test →' })).toBeVisible();
+    const quizId = new URL(student.url()).pathname.split('/').pop();
+    const starts = await Promise.all(
+      [1, 2].map(() => student.request.post(`/api/tests/${quizId}/start`, { headers: { Origin: 'http://localhost:3200' } })),
+    );
+    const [first, second] = await Promise.all(starts.map((r) => r.json()));
+    expect(first.attemptId, JSON.stringify(first)).toBeTruthy();
+    expect(second.attemptId).toBe(first.attemptId);
     await student.getByRole('button', { name: 'Start test →' }).click();
     await student.getByRole('button', { name: 'Start the timer' }).click();
     await expect(student.getByRole('timer')).toBeVisible();
@@ -616,6 +625,18 @@ test.describe.serial('Section E', () => {
     await expect(page.getByText(/Not in that list.*Group 7/)).toBeVisible();
     await page.getByRole('button', { name: 'Save 1 topic' }).click();
     await expect(page.getByText(/Added topics to 1 group /)).toBeVisible();
+
+    // Re-uploading the same subject and title replaces the list in one go.
+    const again = await page.request.post('/api/admin/groups', {
+      headers: { Origin: 'http://localhost:3200' },
+      multipart: {
+        subject: 'CF',
+        title: 'Project groups',
+        text: ['Roll No\tGroup\tTopic', '26PGDM901\t1\tSteel sector strategy', '26PGDM902\t1\t', '26PGDM903\t2\t'].join('\n'),
+        commit: '1',
+      },
+    });
+    expect((await again.json()).saved).toMatchObject({ replaced: true, groups: 2, students: 3 });
 
     // A student sees only their own group and its members. (The poster above pops up once per visit.)
     const member = await browser.newPage();
