@@ -1,0 +1,270 @@
+/* Shared look for v2.3 pieces: announcement banner and list, Coming up, exam countdown, mistakes notebook. */
+
+.head {
+  margin-bottom: clamp(24px, 4vw, 40px);
+}
+.head :global(.page-title) {
+  margin-top: 8px;
+}
+.lede {
+  margin-top: 12px;
+  max-width: 52ch;
+  font-size: clamp(17px, 2vw, 21px);
+  color: var(--ink-2);
+}
+.empty {
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  background: var(--mist);
+  font-size: 19px;
+  color: var(--ink-2);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.card {
+  padding: clamp(16px, 2.6vw, 22px);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  color: var(--ink);
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.cardTitle {
+  font-size: clamp(19px, 2.2vw, 22px);
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+}
+.cardBody {
+  color: var(--ink-2);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.meta {
+  font-size: 14px;
+  color: var(--muted);
+}
+.new {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  vertical-align: 3px;
+}
+
+/* ---------- home-page announcement banner */
+.banner {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 16px 18px;
+  border-radius: var(--radius-lg);
+  background: var(--accent-soft);
+  color: var(--ink);
+  margin: 0 auto 20px;
+  max-width: 720px;
+  text-align: left;
+}
+.bannerIcon {
+  flex: none;
+  color: var(--accent);
+  margin-top: 2px;
+}
+.bannerText {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+.bannerTitle {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.bannerBody {
+  color: var(--ink-2);
+  font-size: 15px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.bannerActions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  font-size: 15px;
+}
+.linkButton {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+/* ---------- Coming up + countdown (home band) */
+.upGrid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 820px) {
+  .upGrid {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  }
+}
+.panelTitle {
+  font-size: clamp(22px, 2.6vw, 28px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+}
+.row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.row:first-child {
+  border-top: 0;
+}
+.when {
+  text-align: center;
+  line-height: 1.1;
+}
+.whenDay {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+}
+.whenMonth {
+  display: block;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.rowTitle {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.rowMeta {
+  font-size: 14px;
+  color: var(--muted);
+}
+.tag {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.tagExam {
+  border-color: var(--vermilion);
+  color: var(--vermilion);
+}
+
+.countdown {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+.bigNumber {
+  font-size: clamp(56px, 9vw, 88px);
+  font-weight: 750;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+.bigLabel {
+  font-size: 17px;
+  color: var(--ink-2);
+}
+.examList {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 15px;
+}
+.examList li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.examList li span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- mistakes notebook */
+.options {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.option {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--mist);
+  overflow-wrap: anywhere;
+}
+.optionRight {
+  background: color-mix(in srgb, var(--ok) 16%, transparent);
+}
+.optionWrong {
+  background: color-mix(in srgb, var(--vermilion) 14%, transparent);
+}
+.optionNote {
+  font-size: 13px;
+  font-weight: 650;
+  margin-left: 6px;
+}
+.explain {
+  font-size: 15px;
+  color: var(--ink-2);
+  white-space: pre-line;
+}
+.filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+/* ---------- offline banner */
+.offline {
+  position: fixed;
+  left: 50%;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: calc(100vw - 32px);
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 14px;
+  box-shadow: var(--shadow-lift);
+  text-align: center;
+}

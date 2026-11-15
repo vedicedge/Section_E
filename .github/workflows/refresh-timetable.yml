@@ -2,8 +2,12 @@
 #
 # In "link" mode the site only re-downloads the official sheet when someone visits, so the phone
 # calendar feed, "what changed" highlights and next-day reminders could fall behind on quiet days.
-# This asks the site to re-download it every 6 hours. It uses the site's public, rate-limited
+# This asks the site to re-download it every 3 hours. It uses the site's public, rate-limited
 # refresh endpoint, so no secret is needed. GitHub may start scheduled runs a few minutes late.
+#
+# In "relay" mode (the Apps Script pushes the sheet every ~10 minutes) there is nothing to pull,
+# so the job instead checks the relay is alive: if it hasn't checked in for 45 minutes the run
+# fails, shows red, and GitHub emails a notice — so a stuck relay is noticed within ~3 hours.
 #
 # Run it by hand from the Actions tab ("Refresh timetable" → "Run workflow").
 
@@ -11,9 +15,8 @@ name: Refresh timetable
 
 on:
   schedule:
-    # 00:17, 06:17, 12:17 and 18:17 UTC = 5:47 am, 11:47 am, 5:47 pm and 11:47 pm in India.
-    # (Off the hour, because GitHub delays jobs queued at :00.)
-    - cron: '17 */6 * * *'
+    # Every 3 hours at :17 UTC (5:47 am, 8:47 am, … in India). Off the hour, because GitHub delays jobs queued at :00.
+    - cron: '17 */3 * * *'
   workflow_dispatch:
 
 permissions: {}
@@ -55,6 +58,24 @@ jobs:
 
           if [ "$status" = "disabled" ]; then
             echo "The timetable is switched off in /admin/timetable; nothing to do."
+            exit 0
+          fi
+          if [ "$mode" = "relay" ]; then
+            if [ "$status" = "pending" ]; then
+              echo "::error::The relay has never sent the timetable. Check the Apps Script trigger."
+              exit 1
+            fi
+            if [ -z "$checked" ]; then
+              echo "::error::The site did not say when the relay last checked in (status: $status). $message"
+              exit 1
+            fi
+            age=$(( $(date -u +%s) - $(date -u -d "$checked" +%s) ))
+            mins=$(( age / 60 ))
+            if [ "$age" -gt 2700 ]; then
+              echo "::error::The Apps Script relay last checked in ${mins} minutes ago (at $checked). It normally checks in every 10 minutes — open the Apps Script project and look at its trigger and executions."
+              exit 1
+            fi
+            echo "Relay is alive: last check-in ${mins} minutes ago ($checked)."
             exit 0
           fi
           if [ "$mode" != "link" ]; then

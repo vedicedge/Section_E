@@ -13,6 +13,8 @@ const LINKS = [
   { href: '/admin/students', label: 'Students' },
   { href: '/admin/groups', label: 'Groups' },
   { href: '/admin/timetable', label: 'Timetable' },
+  { href: '/admin/announcements', label: 'Announcements' },
+  { href: '/admin/dates', label: 'Dates & exams' },
   { href: '/admin/extras', label: 'Posters, links & study' },
 ];
 

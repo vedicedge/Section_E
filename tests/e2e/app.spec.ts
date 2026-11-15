@@ -20,6 +20,7 @@ async function signIn(page: Page, roll: string, pin: string) {
 }
 
 let recoveryCode = '';
+let adminState: Awaited<ReturnType<import('@playwright/test').BrowserContext['storageState']>> | undefined;
 
 async function register(page: Page, roll: string, pin: string) {
   await page.goto('/register');
@@ -650,5 +651,98 @@ test.describe.serial('Section E', () => {
     await expect(card).toContainText('26PGDM902');
     expect(await member.content()).not.toContain('26PGDM903');
     await member.close();
+
+    // The next test reuses this admin session (the suite's admin sign-ins are rate limited).
+    adminState = await page.context().storageState();
+  });
+
+  test('v2.3: announcements, dates and the exam countdown, the mistakes notebook, offline pages', async ({ browser }) => {
+    const admin = await browser.newPage({ storageState: adminState });
+    const istDay = (offset: number) => new Date(Date.now() + 330 * 60_000 + offset * 86_400_000).toISOString().slice(0, 10);
+
+    // Announcements: posted with a notification to every subscribed device.
+    await admin.goto('/admin/announcements');
+    await expect(admin.getByRole('heading', { name: 'Announcements' })).toBeVisible();
+    await admin.getByLabel('Title').fill('E2E: no class on Friday');
+    await admin.getByLabel('Details (optional)').fill('CF moves to Saturday, 10 am.');
+    admin.once('dialog', (d) => d.accept());
+    await admin.getByRole('button', { name: 'Post announcement' }).click();
+    await expect(admin.getByRole('status').filter({ hasText: /^Posted/ })).toBeVisible();
+    await expect(admin.getByTestId('seen-count').first()).toContainText('seen by 0/');
+    const guestPost = await browser.newPage();
+    expect((await guestPost.request.post('/api/admin/announcements', { data: { title: 'x' } })).status()).toBe(401);
+    await guestPost.close();
+
+    // Dates: a pasted exam schedule plus one presentation.
+    await admin.goto('/admin/dates');
+    await admin.getByLabel('Schedule').fill(`${istDay(3)}, CF, End-term exam, 10:00
+${istDay(5)}, MM II, End-term exam`);
+    await admin.getByRole('button', { name: 'Add all' }).click();
+    await expect(admin.getByText('2 dates added.')).toBeVisible();
+    const bad = await admin.request.post('/api/admin/key-dates', { data: { mode: 'paste', text: 'someday, CF' } });
+    expect(bad.status()).toBe(422);
+    const one = await admin.request.post('/api/admin/key-dates', {
+      data: { mode: 'one', kind: 'presentation', subject: 'TOD', title: 'Group 1 presents', onDate: istDay(1), atTime: '', details: '' },
+    });
+    expect(one.status()).toBe(200);
+    await admin.reload();
+    await expect(admin.getByTestId('admin-date')).toHaveCount(3);
+
+    const student = await browser.newPage();
+    await student.goto('/register');
+    await student.getByRole('button', { name: 'Close' }).click(); // the poster from the test above
+    await signIn(student, '26PGDM902', '2468');
+    await student.goto('/');
+    const banner = student.getByTestId('announcement-banner');
+    await expect(banner).toContainText('E2E: no class on Friday');
+    const countdown = student.getByTestId('exam-countdown');
+    await expect(countdown).toContainText('3');
+    await expect(countdown).toContainText('days to the first exam');
+    await expect(countdown).toContainText('MM II');
+    const up = student.getByTestId('coming-up');
+    await expect(up).toContainText('Group 1 presents');
+    await expect(up).toContainText('Tomorrow');
+    await expect(up).toContainText('End-term exam');
+
+    await banner.getByRole('button', { name: 'Got it' }).click();
+    await expect(banner).toHaveCount(0);
+    await expect.poll(async () => (await admin.reload(), await admin.goto('/admin/announcements'), admin.getByTestId('seen-count').first().textContent())).toContain('seen by 1/');
+    await student.reload();
+    await expect(student.getByTestId('announcement-banner')).toHaveCount(0);
+    await student.goto('/announcements');
+    await expect(student.getByTestId('announcement')).toContainText('CF moves to Saturday, 10 am.');
+
+    // Mistakes notebook: the wrong answers from the two mock tests taken earlier.
+    await student.goto('/tests');
+    await student.getByRole('link', { name: 'Revise your mistakes notebook' }).click();
+    await expect(student.getByRole('heading', { level: 1, name: 'Mistakes notebook' })).toBeVisible();
+    const mistakes = student.getByTestId('mistake');
+    await expect(mistakes).toHaveCount(2);
+    await expect(student.getByText('Pick the primes')).toBeVisible();
+    await expect(mistakes.filter({ hasText: 'Instant: capital of France?' })).toContainText('Paris is the capital.');
+    const saved = student.waitForResponse((r) => r.url().endsWith('/api/mistakes') && r.ok());
+    await mistakes.filter({ hasText: 'Pick the primes' }).getByRole('button', { name: 'Got it' }).click();
+    await expect(mistakes).toHaveCount(1);
+    await saved;
+    await student.reload();
+    await expect(student.getByTestId('mistake')).toHaveCount(1);
+    await expect(student.getByText('1 marked “Got it”.')).toBeVisible();
+
+    // Offline: pages opened while online still open without a connection.
+    await student.goto('/seat');
+    await student.evaluate(async () => {
+      await navigator.serviceWorker.ready;
+    });
+    await student.reload(); // now controlled by the worker, so this copy is saved
+    await expect.poll(() => student.evaluate(async () => Boolean(await caches.match(new URL('/seat', location.href).href)))).toBe(true);
+    // (Playwright's offline switch doesn't reach the service worker's own requests, so what it
+    // serves with no connection is covered by tests/unit/service-worker.test.ts instead.)
+
+    // Signing out deletes the saved pages.
+    await student.goto('/register');
+    await student.getByRole('button', { name: /Sign out/ }).click();
+    await expect.poll(() => student.evaluate(async () => Boolean(await caches.match(new URL('/seat', location.href).href)))).toBe(false);
+    await student.close();
+    await admin.close();
   });
 });

@@ -8,6 +8,22 @@ export function forgetReminderOwner() {
   } catch {
     /* storage unavailable */
   }
+  clearOfflineCopies();
+}
+
+/**
+ * Browser-side: delete the pages saved for offline use (they show one student's seat, homework
+ * and leaves). Runs on sign-out and when someone signs in, so a shared phone never shows the
+ * previous student's pages offline.
+ */
+export function clearOfflineCopies() {
+  try {
+    navigator.serviceWorker?.controller?.postMessage({ type: 'clear-offline' });
+    // Also from the page itself, in case no worker controls it yet.
+    if (typeof caches !== 'undefined') caches.delete('se-pages-v1').catch(() => false);
+  } catch {
+    /* best effort */
+  }
 }
 
 /**

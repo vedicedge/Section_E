@@ -262,4 +262,44 @@ export const MIGRATIONS: string[] = [
   );
   CREATE INDEX group_members_roll_idx ON group_members (roll_no);
   `,
+
+  // 11 — v2.3: announcements (with an anonymous "seen by" count), dates for the "Coming up" list and
+  //      the exam countdown, and the mistakes notebook's "got it" ticks.
+  `
+  CREATE TABLE announcements (
+    id         TEXT PRIMARY KEY,
+    title      TEXT NOT NULL,
+    body       TEXT NOT NULL DEFAULT '',
+    link       TEXT,
+    expires_on DATE,
+    pushed     INTEGER,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX announcements_created_idx ON announcements (created_at DESC);
+  CREATE TABLE announcement_seen (
+    announcement_id TEXT NOT NULL REFERENCES announcements(id) ON DELETE CASCADE,
+    roll_no         TEXT NOT NULL,
+    seen_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (announcement_id, roll_no)
+  );
+
+  CREATE TABLE key_dates (
+    id         TEXT PRIMARY KEY,
+    kind       TEXT NOT NULL CHECK (kind IN ('exam', 'presentation', 'quiz', 'event')),
+    subject    TEXT,
+    title      TEXT NOT NULL,
+    on_date    DATE NOT NULL,
+    at_time    TEXT,
+    details    TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX key_dates_on_idx ON key_dates (on_date);
+
+  CREATE TABLE mistakes_cleared (
+    roll_no     TEXT NOT NULL,
+    question_id TEXT NOT NULL,
+    cleared_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (roll_no, question_id)
+  );
+  `,
 ];

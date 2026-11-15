@@ -157,5 +157,7 @@ export async function deleteStudent(roll: string) {
   await query('DELETE FROM group_members WHERE roll_no = $1', [roll]);
   // quiz_attempts has no foreign key to students, so remove them here (no nameless rows in results).
   await query('DELETE FROM quiz_attempts WHERE roll_no = $1', [roll]);
+  await query('DELETE FROM announcement_seen WHERE roll_no = $1', [roll]);
+  await query('DELETE FROM mistakes_cleared WHERE roll_no = $1', [roll]);
   await query('DELETE FROM students WHERE roll_no = $1', [roll]);
 }

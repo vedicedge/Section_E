@@ -31,7 +31,7 @@
   flex: 1 1 auto;
   display: flex;
   justify-content: center;
-  gap: 4px 26px;
+  gap: 4px clamp(14px, 1.8vw, 26px);
   font-size: 13.5px;
 }
 .link {
@@ -40,6 +40,7 @@
   align-items: center;
   gap: 6px;
   padding: 14px 0;
+  white-space: nowrap;
   color: var(--ink);
   opacity: 0.78;
   transition: opacity 0.4s var(--ease);
@@ -110,7 +111,7 @@
   font-size: 14px;
 }
 
-@media (max-width: 734px) {
+@media (max-width: 979px) {
   .links {
     display: none;
   }
