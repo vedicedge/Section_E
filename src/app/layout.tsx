@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { Suspense } from 'react';
 import { preload } from 'react-dom';
 import { NavProgress } from '@/components/NavProgress';
+import { OfflineSupport } from '@/components/OfflineSupport';
 import './fonts.css';
 import './globals.css';
 
@@ -56,6 +57,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           Skip to content
         </a>
         {children}
+        <OfflineSupport />
       </body>
     </html>
   );

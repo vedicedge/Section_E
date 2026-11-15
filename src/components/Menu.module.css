@@ -10,7 +10,7 @@
   color: var(--ink);
   place-items: center;
 }
-@media (max-width: 734px) {
+@media (max-width: 979px) {
   .trigger {
     display: grid;
   }

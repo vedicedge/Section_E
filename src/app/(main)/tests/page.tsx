@@ -81,6 +81,13 @@ export default async function TestsPage() {
         <h1 className="page-title">
           OLT <em>Mock</em> Tests<span className="count">({String(live.length).padStart(2, '0')})</span>
         </h1>
+        {student && attempts.some((a) => a.submittedAt) && (
+          <p style={{ marginTop: 16 }}>
+            <Link href="/tests/mistakes" className="arrow-link">
+              Revise your mistakes notebook
+            </Link>
+          </p>
+        )}
       </header>
 
       {mockLinks.length > 0 && (

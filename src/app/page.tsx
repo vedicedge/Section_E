@@ -10,7 +10,10 @@ import { openHomeworkCount } from '@/lib/homework/repo';
 import { countStudyMaterials } from '@/lib/study';
 import { myGroups } from '@/lib/groups/repo';
 import { Reveal } from '@/components/Reveal';
+import { unseenAnnouncement } from '@/lib/announcements';
+import { AnnouncementBanner } from '@/components/AnnouncementBanner';
 import { TodayInE, TodaySkeleton } from './TodayInE';
+import { ComingUp } from './ComingUp';
 import styles from './page.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -115,7 +118,7 @@ interface Tool {
 
 export default async function Home() {
   const studentLoad = getStudent();
-  const [s, student, timetable, h, studyCount, groupCount] = await Promise.all([
+  const [s, student, timetable, h, studyCount, groupCount, notice] = await Promise.all([
     stats(),
     studentLoad,
     timetableEnabled(),
@@ -123,6 +126,7 @@ export default async function Home() {
     countStudyMaterials(),
     // A count is not worth failing the landing page over.
     studentLoad.then((st) => (st ? myGroups(st.rollNo).then((g) => g.length) : 0)).catch(() => 0),
+    studentLoad.then((st) => (st ? unseenAnnouncement(st.rollNo) : null)).catch(() => null),
   ]);
   const first = student?.name.split(' ')[0];
 
@@ -194,6 +198,7 @@ export default async function Home() {
       <main id="main">
         <section className={styles.hero} aria-labelledby="hero-title">
           <div className="container">
+            {notice && <AnnouncementBanner id={notice.id} title={notice.title} body={notice.body} more={notice.more} />}
             <p className={`eyebrow ${styles.kicker}`}>{student ? `Welcome back, ${first}.` : 'PGDM 2026–28, Section E'}</p>
             <h1 id="hero-title" className={styles.headline}>
               Outside the building. Above the rest.
@@ -249,6 +254,14 @@ export default async function Home() {
             </Reveal>
           </section>
         )}
+
+        <section className={styles.upcoming} aria-label="Coming up and exams">
+          <Reveal className="container">
+            <Suspense fallback={null}>
+              <ComingUp rollNo={student?.rollNo ?? null} />
+            </Suspense>
+          </Reveal>
+        </section>
 
         <section className={styles.tools} aria-labelledby="tools-title">
           <div className="container">

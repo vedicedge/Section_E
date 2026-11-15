@@ -61,6 +61,14 @@
   padding: clamp(40px, 7vw, 80px) 0;
 }
 
+/* Coming up + exam countdown; collapses to nothing when there's nothing to show. */
+.upcoming {
+  padding: 0 0 clamp(40px, 7vw, 80px);
+}
+.upcoming:not(:has(section)) {
+  display: none;
+}
+
 /* ----------------------------------------------------------------- tools */
 
 .tools {
