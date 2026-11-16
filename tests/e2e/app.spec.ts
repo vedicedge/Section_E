@@ -659,6 +659,9 @@ test.describe.serial('Section E', () => {
     const feed = JSON.parse(feedText);
     expect(feed.quizzes.map((q: { title: string }) => q.title)).toContain('OLT Mock 1');
     expect(feed.groups.find((g: { subject: string }) => g.subject === 'CF').groups[0]).toMatchObject({ name: 'Group 1', topic: 'Steel sector strategy', size: 2 });
+    // The class timetable is part of the feed, and a switched-off timetable never breaks it.
+    expect(['ok', 'stale', 'unavailable']).toContain(feed.timetable.status);
+    expect(Array.isArray(feed.timetable.days)).toBe(true);
     // Seating goes out as roll number -> seat (26PGDM902 sits in SM Row 2 · Seat 2), with no names.
     const sm = feed.seating.find((p: { code: string }) => p.code === 'SM');
     expect(sm.seats.find((s: { rollNo: string }) => s.rollNo === '26PGDM902')).toMatchObject({ row: 'Row 2', seat: 2 });
