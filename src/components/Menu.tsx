@@ -6,7 +6,6 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/client-api';
 import { forgetThisDevice } from '@/lib/push-client';
 import type { NavLink } from './nav';
-import { ECHO_URL } from '@/lib/echo';
 import styles from './Menu.module.css';
 
 interface Props {
@@ -140,7 +139,7 @@ export function MenuButton({ student, links, dueTomorrow }: Props) {
                   Register
                 </Link>
               )}
-              <a className="btn btn--ghost btn--sm" href={ECHO_URL} target="_blank" rel="noopener noreferrer">
+              <a className="btn btn--ghost btn--sm" href="/echo" target="_blank" rel="noopener noreferrer">
                 Ask Echo
               </a>
               <Link className="btn btn--ghost btn--sm" href="/admin">

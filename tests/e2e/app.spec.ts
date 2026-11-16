@@ -43,7 +43,11 @@ test.describe.serial('Section E', () => {
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Outside the building');
     // Echo is featured right under the hero, ahead of the feature tiles.
     const echo = page.getByRole('region', { name: /Ask Echo/ });
-    await expect(echo.getByRole('link', { name: 'Ask Echo' })).toHaveAttribute('href', /^https:\/\/claude\.ai\/artifact\//);
+    await expect(echo.getByRole('link', { name: 'Ask Echo' })).toHaveAttribute('href', '/echo');
+    // Not signed in: /echo asks you to register first, then brings you back.
+    const anon = await page.request.get('/echo', { maxRedirects: 0 });
+    expect(anon.status()).toBe(307);
+    expect(anon.headers()['location']).toContain('/register?next=/echo');
     const nav = page.getByRole('navigation', { name: 'Features' });
     expect((await echo.boundingBox())!.y).toBeLessThan((await nav.boundingBox())!.y);
     await expect(nav.getByRole('link', { name: /My seat/ })).toHaveAttribute('href', '/seat');
@@ -718,6 +722,10 @@ ${istDay(5)}, MM II, End-term exam`);
     await student.goto('/register');
     await student.getByRole('button', { name: 'Close' }).click(); // the poster from the test above
     await signIn(student, '26PGDM902', '2468');
+    // "Ask Echo" sends a signed-in student to the Echo copy they were invited to (26PGDM902 is on the second).
+    const toEcho = await student.request.get('/echo', { maxRedirects: 0 });
+    expect(toEcho.status()).toBe(307);
+    expect(toEcho.headers()['location']).toMatch(/^https:\/\/claude\.ai\/artifact\/AthRNRtiNRX7GWFgDCzfsQ$/);
     await student.goto('/');
     const banner = student.getByTestId('announcement-banner');
     await expect(banner).toContainText('E2E: no class on Friday');
