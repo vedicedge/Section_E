@@ -2,6 +2,9 @@ import type { Metadata } from 'next';
 import { requireAdminPage } from '@/lib/admin-guard';
 import { listMockLinks, listPromotions } from '@/lib/extras';
 import { listStudyMaterials } from '@/lib/study';
+import { echoFeedStatus } from '@/lib/echo-feed';
+import { ECHO_URL } from '@/lib/echo';
+import { EchoPanel } from './EchoPanel';
 import { ExtrasForms } from './ExtrasForms';
 import styles from '../../admin.module.css';
 
@@ -10,7 +13,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminExtras() {
   await requireAdminPage();
-  const [promotions, links, study] = await Promise.all([listPromotions(), listMockLinks(), listStudyMaterials()]);
+  const [promotions, links, study, echo] = await Promise.all([listPromotions(), listMockLinks(), listStudyMaterials(), echoFeedStatus()]);
   return (
     <div className={styles.stack}>
       <header className={styles.pageHead}>
@@ -23,6 +26,7 @@ export default async function AdminExtras() {
         </div>
       </header>
       <ExtrasForms promotions={promotions} links={links} study={study} />
+      <EchoPanel status={echo} echoUrl={ECHO_URL} />
     </div>
   );
 }
