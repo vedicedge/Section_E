@@ -14,6 +14,7 @@ import { unseenAnnouncement } from '@/lib/announcements';
 import { AnnouncementBanner } from '@/components/AnnouncementBanner';
 import { TodayInE, TodaySkeleton } from './TodayInE';
 import { ComingUp } from './ComingUp';
+import { ECHO_URL } from '@/lib/echo';
 import styles from './page.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -30,7 +31,7 @@ async function stats() {
   return { students: Number(row?.students ?? 0), subjects: Number(row?.subjects ?? 0), live, homework };
 }
 
-const HOW_MANY = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven'];
+const HOW_MANY = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 function Chevron() {
@@ -80,6 +81,12 @@ const ICONS = {
       <circle cx="13" cy="13" r="5" fill="none" stroke="currentColor" strokeWidth="2" />
       <circle cx="25" cy="15" r="4" fill="none" stroke="currentColor" strokeWidth="2" />
       <path d="M4 30c0-5 4-9 9-9s9 4 9 9M22 23.5c1-.9 2.3-1.5 3.8-1.5 3.4 0 6.2 2.8 6.2 6.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  ),
+  echo: (
+    <svg width="36" height="36" viewBox="0 0 36 36" aria-hidden>
+      <path d="M7 9a4 4 0 0 1 4-4h14a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H16l-6 5v-5h0a3 3 0 0 1-3-3z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M13 14h.01M18 14h.01M23 14h.01" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
     </svg>
   ),
   tests: (
@@ -189,6 +196,13 @@ export default async function Home() {
       body: 'Your group in each subject and who’s in it with you. Only you see yours.',
       stat: groupCount ? plural(groupCount, 'subject', 'subjects') : null,
     },
+    {
+      key: 'echo',
+      href: ECHO_URL,
+      title: 'Ask Echo',
+      body: 'Section E’s study buddy on Claude. It has read every Term II outline and the class notes, and answers on your own Claude account.',
+      stat: 'On claude.ai',
+    },
   ];
   const things = HOW_MANY[tools.length] ?? String(tools.length);
 
@@ -273,8 +287,9 @@ export default async function Home() {
             </Reveal>
             <Reveal delay={80}>
             <nav aria-label="Features" className={styles.grid}>
-              {tools.map((t) => (
-                <Link key={t.href} href={t.href} className={`${styles.tool} ${t.wide ? styles.toolWide : ''}`}>
+              {tools.map((t) => {
+                const inner = (
+                  <>
                   <div className={styles.toolText}>
                     <span className={styles.toolIcon}>{ICONS[t.key]}</span>
                     <h3 className={styles.toolTitle}>{t.title}</h3>
@@ -287,8 +302,20 @@ export default async function Home() {
                     </span>
                   </div>
                   {t.wide && <MiniRoom />}
-                </Link>
-              ))}
+                  </>
+                );
+                const cls = `${styles.tool} ${t.wide ? styles.toolWide : ''}`;
+                // Echo lives on claude.ai: open it in a new tab so the site stays open.
+                return t.href.startsWith('https://') ? (
+                  <a key={t.href} href={t.href} className={cls} target="_blank" rel="noopener noreferrer">
+                    {inner}
+                  </a>
+                ) : (
+                  <Link key={t.href} href={t.href} className={cls}>
+                    {inner}
+                  </Link>
+                );
+              })}
             </nav>
             </Reveal>
           </div>

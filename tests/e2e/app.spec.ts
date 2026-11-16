@@ -639,6 +639,24 @@ test.describe.serial('Section E', () => {
     });
     expect((await again.json()).saved).toMatchObject({ replaced: true, groups: 2, students: 3 });
 
+    // Echo's knowledge feed: locked without the key, class-wide facts only with it.
+    const noKey = await page.request.get('/api/echo/feed');
+    expect(noKey.status()).toBe(401);
+    const made = await page.request.post('/api/admin/echo-key', { headers: { Origin: 'http://localhost:3200' }, data: {} });
+    const { key } = await made.json();
+    expect(key).toMatch(/^echo_/);
+    const feedRes = await page.request.get('/api/echo/feed', { headers: { Authorization: `Bearer ${key}` } });
+    expect(feedRes.status()).toBe(200);
+    const feedText = await feedRes.text();
+    const feed = JSON.parse(feedText);
+    expect(feed.quizzes.map((q: { title: string }) => q.title)).toContain('OLT Mock 1');
+    expect(feed.groups.find((g: { subject: string }) => g.subject === 'CF').groups[0]).toMatchObject({ name: 'Group 1', topic: 'Steel sector strategy', size: 2 });
+    // Nothing that identifies a student leaves through the feed.
+    expect(feedText).not.toMatch(/\d{2}PGDM\d{2,4}/i);
+    expect(feedText).not.toContain('Test Student');
+    const oldKey = await page.request.get('/api/echo/feed', { headers: { Authorization: 'Bearer echo_wrong' } });
+    expect(oldKey.status()).toBe(401);
+
     // A student sees only their own group and its members. (The poster above pops up once per visit.)
     const member = await browser.newPage();
     await member.goto('/register');
