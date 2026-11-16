@@ -196,13 +196,6 @@ export default async function Home() {
       body: 'Your group in each subject and who’s in it with you. Only you see yours.',
       stat: groupCount ? plural(groupCount, 'subject', 'subjects') : null,
     },
-    {
-      key: 'echo',
-      href: ECHO_URL,
-      title: 'Ask Echo',
-      body: 'Section E’s study buddy on Claude. It has read every Term II outline and the class notes, and answers on your own Claude account.',
-      stat: 'On claude.ai',
-    },
   ];
   const things = HOW_MANY[tools.length] ?? String(tools.length);
 
@@ -242,6 +235,32 @@ export default async function Home() {
                 </Link>
               )}
             </div>
+            {/* Echo is the headline act: first thing under the hero, before the room and the tiles. */}
+            <section className={styles.echo} aria-labelledby="echo-title">
+              <span className={styles.echoWaves} aria-hidden>
+                {ICONS.echo}
+              </span>
+              <div>
+                <h2 id="echo-title" className={styles.echoTitle}>
+                  Ask Echo, the section’s study buddy.
+                </h2>
+                <p className={styles.echoBody}>
+                  Echo has read every Term II outline and the faculty’s session decks. It knows the quiz dates, quizzes you on any session, and tells
+                  you your seat once you give it your roll number. It runs on your own Claude account.
+                </p>
+                <ul className={styles.echoAsks} aria-label="Things to ask Echo">
+                  <li>“Quiz me on OM session 7”</li>
+                  <li>“NPV or IRR: which one wins?”</li>
+                  <li>“Where do I sit in SM?”</li>
+                </ul>
+                <div className={styles.echoGo}>
+                  <a className="btn btn--accent" href={ECHO_URL} target="_blank" rel="noopener noreferrer">
+                    Ask Echo
+                  </a>
+                  <span className={styles.echoNote}>Opens on claude.ai</span>
+                </div>
+              </div>
+            </section>
             <svg className={styles.mark} viewBox="0 0 320 340" role="img" aria-label="The Section E mark: a large serif E with a hatched shadow">
               <defs>
                 <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">

@@ -8,11 +8,14 @@ import { listStudyMaterials } from './study';
 import { liveAnnouncements } from './announcements';
 import { listKeyDatesForAdmin } from './key-dates';
 import { loadDueContext, recentHomework, resolveAll } from './homework/repo';
+import { activePlanSummaries, planStatus, type LayoutRow } from './seating/repo';
 
 /**
  * Echo's knowledge feed: everything class-wide that Echo (Section E's study assistant on claude.ai)
- * should know, read nightly by the owner's sync task with a key. It never carries anything about an
- * individual student: no names, roll numbers, seats, attendance, results or group members.
+ * should know, read nightly by the owner's sync task with a key. It never carries names, attendance,
+ * results or group members. The one per-student item is seating: roll number -> row and seat for each
+ * current or upcoming plan (no names), so Echo can answer "where do I sit in CF?" when a student gives
+ * their roll number. The owner chose this on 16 Nov 2026.
  */
 
 const SETTING_KEY = 'echo.feed';
@@ -58,6 +61,20 @@ export interface EchoFeed {
   keyDates: { kind: string; subject: string | null; title: string; date: string; time: string | null; details: string }[];
   homework: { subject: string; title: string; details: string; givenOn: string; due: string | null; dueTime: string | null }[];
   groups: { subject: string; title: string; groups: { name: string; topic: string | null; size: number }[] }[];
+  seating: {
+    code: string;
+    title: string;
+    kind: 'class' | 'exam';
+    room: string | null;
+    aliases: string[];
+    validFrom: string | null;
+    validTo: string | null;
+    status: 'current' | 'upcoming';
+    /** Room shape, front row first: each row's label and how many seats it has. */
+    rows: { label: string; seats: number }[];
+    /** Roll number -> seat. No names. */
+    seats: { rollNo: string; row: string; seat: number; seatsInRow: number }[];
+  }[];
 }
 
 /** Group lists by subject: each group's name, topic and size only (members are never included). */
@@ -78,8 +95,39 @@ async function groupTopics(): Promise<EchoFeed['groups']> {
   return [...sets.values()];
 }
 
+/** Current and upcoming seating plans: roll number -> row and seat, never names or notes. */
+async function seating(today: string): Promise<EchoFeed['seating']> {
+  const plans = (await activePlanSummaries()).filter((p) => planStatus(p, today) !== 'expired');
+  if (!plans.length) return [];
+  const rows = await query<{ plan_id: string; roll_no: string; row_label: string | null; row_index: number | null; seat_number: number | null }>(
+    `SELECT plan_id, roll_no, row_label, row_index, seat_number FROM seat_assignments
+      WHERE plan_id = ANY($1) AND seat_number IS NOT NULL ORDER BY plan_id, row_index, seat_number`,
+    [plans.map((p) => p.id)],
+  );
+  const rowSize = (layout: LayoutRow[], i: number | null) => (i === null ? 0 : (layout[i]?.seats.length ?? 0));
+  return plans.map((p) => ({
+    code: p.code,
+    title: p.title,
+    kind: p.kind,
+    room: p.room,
+    aliases: p.aliases,
+    validFrom: p.validFrom,
+    validTo: p.validTo,
+    status: planStatus(p, today) as 'current' | 'upcoming',
+    rows: p.layout.map((r) => ({ label: r.label, seats: r.seats.length })),
+    seats: rows
+      .filter((r) => r.plan_id === p.id)
+      .map((r) => ({
+        rollNo: r.roll_no,
+        row: r.row_label ?? p.layout[Number(r.row_index)]?.label ?? '',
+        seat: Number(r.seat_number),
+        seatsInRow: rowSize(p.layout, r.row_index === null ? null : Number(r.row_index)),
+      })),
+  }));
+}
+
 export async function buildEchoFeed(today = todayISO()): Promise<EchoFeed> {
-  const [quizzes, study, announcements, keyDates, homeworkRecords, ctx, groups] = await Promise.all([
+  const [quizzes, study, announcements, keyDates, homeworkRecords, ctx, groups, seats] = await Promise.all([
     listPublishedQuizzes(),
     listStudyMaterials(),
     liveAnnouncements(today),
@@ -87,6 +135,7 @@ export async function buildEchoFeed(today = todayISO()): Promise<EchoFeed> {
     recentHomework(30),
     loadDueContext(),
     groupTopics(),
+    seating(today),
   ]);
   const homework = await resolveAll(homeworkRecords, ctx, today);
   return {
@@ -109,5 +158,6 @@ export async function buildEchoFeed(today = todayISO()): Promise<EchoFeed> {
       .filter((h) => !h.due.date || h.due.date >= addDays(today, -7))
       .map((h) => ({ subject: h.subjectTitle || h.subjectCode, title: h.title, details: h.details, givenOn: h.givenOn, due: h.due.date, dueTime: h.due.time })),
     groups,
+    seating: seats,
   };
 }

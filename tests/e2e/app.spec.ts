@@ -41,7 +41,11 @@ test.describe.serial('Section E', () => {
   test('landing page shows the features', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Outside the building');
+    // Echo is featured right under the hero, ahead of the feature tiles.
+    const echo = page.getByRole('region', { name: /Ask Echo/ });
+    await expect(echo.getByRole('link', { name: 'Ask Echo' })).toHaveAttribute('href', /^https:\/\/claude\.ai\/artifact\//);
     const nav = page.getByRole('navigation', { name: 'Features' });
+    expect((await echo.boundingBox())!.y).toBeLessThan((await nav.boundingBox())!.y);
     await expect(nav.getByRole('link', { name: /My seat/ })).toHaveAttribute('href', '/seat');
     await expect(nav.getByRole('link', { name: /Live timetable/ })).toHaveAttribute('href', '/timetable');
     await expect(nav.getByRole('link', { name: /mock tests/i })).toHaveAttribute('href', '/tests');
@@ -651,8 +655,12 @@ test.describe.serial('Section E', () => {
     const feed = JSON.parse(feedText);
     expect(feed.quizzes.map((q: { title: string }) => q.title)).toContain('OLT Mock 1');
     expect(feed.groups.find((g: { subject: string }) => g.subject === 'CF').groups[0]).toMatchObject({ name: 'Group 1', topic: 'Steel sector strategy', size: 2 });
-    // Nothing that identifies a student leaves through the feed.
-    expect(feedText).not.toMatch(/\d{2}PGDM\d{2,4}/i);
+    // Seating goes out as roll number -> seat (26PGDM902 sits in SM Row 2 · Seat 2), with no names.
+    const sm = feed.seating.find((p: { code: string }) => p.code === 'SM');
+    expect(sm.seats.find((s: { rollNo: string }) => s.rollNo === '26PGDM902')).toMatchObject({ row: 'Row 2', seat: 2 });
+    for (const s of sm.seats) expect(Object.keys(s).sort()).toEqual(['rollNo', 'row', 'seat', 'seatsInRow']);
+    // Roll numbers appear nowhere else, and names appear nowhere at all.
+    expect(JSON.stringify({ ...feed, seating: [] })).not.toMatch(/\d{2}PGDM\d{2,4}/i);
     expect(feedText).not.toContain('Test Student');
     const oldKey = await page.request.get('/api/echo/feed', { headers: { Authorization: 'Bearer echo_wrong' } });
     expect(oldKey.status()).toBe(401);
