@@ -9,6 +9,8 @@ import { liveAnnouncements } from './announcements';
 import { listKeyDatesForAdmin } from './key-dates';
 import { loadDueContext, recentHomework, resolveAll } from './homework/repo';
 import { activePlanSummaries, planStatus, type LayoutRow } from './seating/repo';
+import { upcomingSchedule } from './schedule';
+import { timetableForEcho, type EchoTimetableDay } from './echo-timetable';
 
 /**
  * Echo's knowledge feed: everything class-wide that Echo (Section E's study assistant on claude.ai)
@@ -61,6 +63,8 @@ export interface EchoFeed {
   keyDates: { kind: string; subject: string | null; title: string; date: string; time: string | null; details: string }[];
   homework: { subject: string; title: string; details: string; givenOn: string; due: string | null; dueTime: string | null }[];
   groups: { subject: string; title: string; groups: { name: string; topic: string | null; size: number }[] }[];
+  /** The next two weeks of classes from the live timetable ("unavailable" when it is off or can't be read). */
+  timetable: { status: 'ok' | 'stale' | 'unavailable'; checkedAt: string | null; days: EchoTimetableDay[] };
   seating: {
     code: string;
     title: string;
@@ -95,6 +99,17 @@ async function groupTopics(): Promise<EchoFeed['groups']> {
   return [...sets.values()];
 }
 
+/** The next 14 days of the class timetable. A timetable that is off or unreadable must not fail the feed. */
+async function timetable(): Promise<EchoFeed['timetable']> {
+  try {
+    const { state, days } = await upcomingSchedule(14);
+    if (state.status !== 'ok' && state.status !== 'stale') return { status: 'unavailable', checkedAt: null, days: [] };
+    return { status: state.status, checkedAt: state.checkedAt, days: timetableForEcho(days) };
+  } catch {
+    return { status: 'unavailable', checkedAt: null, days: [] };
+  }
+}
+
 /** Current and upcoming seating plans: roll number -> row and seat, never names or notes. */
 async function seating(today: string): Promise<EchoFeed['seating']> {
   const plans = (await activePlanSummaries()).filter((p) => planStatus(p, today) !== 'expired');
@@ -127,7 +142,7 @@ async function seating(today: string): Promise<EchoFeed['seating']> {
 }
 
 export async function buildEchoFeed(today = todayISO()): Promise<EchoFeed> {
-  const [quizzes, study, announcements, keyDates, homeworkRecords, ctx, groups, seats] = await Promise.all([
+  const [quizzes, study, announcements, keyDates, homeworkRecords, ctx, groups, seats, classes] = await Promise.all([
     listPublishedQuizzes(),
     listStudyMaterials(),
     liveAnnouncements(today),
@@ -136,6 +151,7 @@ export async function buildEchoFeed(today = todayISO()): Promise<EchoFeed> {
     loadDueContext(),
     groupTopics(),
     seating(today),
+    timetable(),
   ]);
   const homework = await resolveAll(homeworkRecords, ctx, today);
   return {
@@ -158,6 +174,7 @@ export async function buildEchoFeed(today = todayISO()): Promise<EchoFeed> {
       .filter((h) => !h.due.date || h.due.date >= addDays(today, -7))
       .map((h) => ({ subject: h.subjectTitle || h.subjectCode, title: h.title, details: h.details, givenOn: h.givenOn, due: h.due.date, dueTime: h.due.time })),
     groups,
+    timetable: classes,
     seating: seats,
   };
 }
