@@ -14,7 +14,6 @@ import { unseenAnnouncement } from '@/lib/announcements';
 import { AnnouncementBanner } from '@/components/AnnouncementBanner';
 import { TodayInE, TodaySkeleton } from './TodayInE';
 import { ComingUp } from './ComingUp';
-import { ECHO_URL } from '@/lib/echo';
 import styles from './page.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -254,7 +253,7 @@ export default async function Home() {
                   <li>“Where do I sit in SM?”</li>
                 </ul>
                 <div className={styles.echoGo}>
-                  <a className="btn btn--accent" href={ECHO_URL} target="_blank" rel="noopener noreferrer">
+                  <a className="btn btn--accent" href="/echo" target="_blank" rel="noopener noreferrer">
                     Ask Echo
                   </a>
                   <span className={styles.echoNote}>Opens on claude.ai</span>
