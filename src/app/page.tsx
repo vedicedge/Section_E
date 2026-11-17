@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Suspense } from 'react';
+import { Suspense, type CSSProperties } from 'react';
 import { SiteHeader, timetableEnabled } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { query } from '@/lib/db';
@@ -14,6 +14,7 @@ import { unseenAnnouncement } from '@/lib/announcements';
 import { AnnouncementBanner } from '@/components/AnnouncementBanner';
 import { TodayInE, TodaySkeleton } from './TodayInE';
 import { ComingUp } from './ComingUp';
+import { ScrollStory } from './ScrollStory';
 import styles from './page.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -202,7 +203,7 @@ export default async function Home() {
     <>
       <SiteHeader />
       <main id="main">
-        <section className={styles.hero} aria-labelledby="hero-title">
+        <section className={styles.hero} aria-labelledby="hero-title" data-story="hero">
           <div className="container">
             {notice && <AnnouncementBanner id={notice.id} title={notice.title} body={notice.body} more={notice.more} />}
             <p className={`eyebrow ${styles.kicker}`}>{student ? `Welcome back, ${first}.` : 'PGDM 2026–28, Section E'}</p>
@@ -295,7 +296,9 @@ export default async function Home() {
           </Reveal>
         </section>
 
-        <section className={styles.tools} aria-labelledby="tools-title">
+        {/* The tools as a scroll story: a sticky counter, a line that fills, cards that slide and blur in.
+            Browsers without scroll-driven animations get the same cards as a plain list. */}
+        <section className={styles.tools} aria-labelledby="tools-title" data-story="tools" style={{ '--scope': ['--journey', ...tools.map((_, i) => `--tool${i + 1}`)].join(', ') } as CSSProperties}>
           <div className="container">
             <Reveal>
               <h2 id="tools-title" className={styles.sectionTitle}>
@@ -303,39 +306,54 @@ export default async function Home() {
               </h2>
               <p className={styles.sectionLede}>{student ? 'Each of them already shows what’s yours.' : 'Register once and each of them shows what’s yours.'}</p>
             </Reveal>
-            <Reveal delay={80}>
-            <nav aria-label="Features" className={styles.grid}>
-              {tools.map((t) => {
-                const inner = (
-                  <>
-                  <div className={styles.toolText}>
-                    <span className={styles.toolIcon}>{ICONS[t.key]}</span>
-                    <h3 className={styles.toolTitle}>{t.title}</h3>
-                    <p className={styles.toolBody}>{t.body}</p>
-                    <span className={styles.toolFoot}>
-                      {t.stat && <span className={`${styles.stat} tabular`}>{t.stat}</span>}
-                      <span className={styles.open}>
-                        Open <Chevron />
-                      </span>
-                    </span>
-                  </div>
-                  {t.wide && <MiniRoom />}
-                  </>
-                );
-                const cls = `${styles.tool} ${t.wide ? styles.toolWide : ''}`;
-                // Echo lives on claude.ai: open it in a new tab so the site stays open.
-                return t.href.startsWith('https://') ? (
-                  <a key={t.href} href={t.href} className={cls} target="_blank" rel="noopener noreferrer">
-                    {inner}
-                  </a>
-                ) : (
-                  <Link key={t.href} href={t.href} className={cls}>
-                    {inner}
-                  </Link>
-                );
-              })}
+            <div className={styles.storyBar} aria-hidden>
+              <div className={styles.dial}>
+                {tools.map((t, i) => (
+                  <span key={t.href} className={styles.dialLabel} data-story="label" style={{ '--tl': `--tool${i + 1}` } as CSSProperties}>
+                    <b className="tabular">{String(i + 1).padStart(2, '0')}</b>
+                    <small className="tabular">/ {String(tools.length).padStart(2, '0')}</small>
+                    <em>{t.title}</em>
+                  </span>
+                ))}
+              </div>
+              <span className={styles.dialBar} />
+            </div>
+            <nav aria-label="Features">
+              <ol className={styles.story} data-story="list">
+                {tools.map((t, i) => {
+                  const inner = (
+                    <>
+                      <div className={styles.toolText}>
+                        <span className={styles.toolIcon}>{ICONS[t.key]}</span>
+                        <h3 className={styles.toolTitle}>{t.title}</h3>
+                        <p className={styles.toolBody}>{t.body}</p>
+                        <span className={styles.toolFoot}>
+                          {t.stat && <span className={`${styles.stat} tabular`}>{t.stat}</span>}
+                          <span className={styles.open}>
+                            Open <Chevron />
+                          </span>
+                        </span>
+                      </div>
+                      {t.wide && <MiniRoom />}
+                    </>
+                  );
+                  const cls = `${styles.tool} ${styles.storyCard}`;
+                  return (
+                    <li key={t.href} className={styles.storyItem} data-story="item" style={{ '--tl': `--tool${i + 1}` } as CSSProperties}>
+                      {t.href.startsWith('https://') ? (
+                        <a href={t.href} className={cls} target="_blank" rel="noopener noreferrer">
+                          {inner}
+                        </a>
+                      ) : (
+                        <Link href={t.href} className={cls}>
+                          {inner}
+                        </Link>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
             </nav>
-            </Reveal>
           </div>
         </section>
 
@@ -388,6 +406,7 @@ export default async function Home() {
             )}
           </Reveal>
         </section>
+        <ScrollStory storyOnClass={styles.storyOn} />
       </main>
       <SiteFooter />
     </>

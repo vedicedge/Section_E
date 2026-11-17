@@ -6,9 +6,15 @@
 /* ------------------------------------------------------------------ hero */
 
 .hero {
+  --motion: 1;
   text-align: center;
   padding: clamp(56px, 10vw, 112px) 0 clamp(24px, 4vw, 40px);
   overflow: hidden;
+  /* --exit runs 0 -> 1 as the hero scrolls away: CSS on new browsers, ScrollStory.tsx on older ones. */
+  opacity: calc(1 - var(--exit) * 0.95);
+  translate: 0 calc(var(--exit) * 20vh * var(--motion));
+  scale: calc(1 - var(--exit) * 0.15 * var(--motion));
+  transform-origin: 50% 0;
 }
 .kicker {
   font-size: clamp(17px, 2vw, 21px);
@@ -172,12 +178,6 @@
   color: var(--muted);
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: clamp(12px, 2vw, 20px);
-  margin-top: clamp(28px, 5vw, 48px);
-}
 .tool {
   position: relative;
   display: flex;
@@ -204,14 +204,6 @@
 .tool:active {
   transform: scale(0.98);
   transition-duration: 0.14s;
-}
-.toolWide,
-/* an odd one out at the end takes the full row */
-.tool:last-child:nth-child(even) {
-  grid-column: 1 / -1;
-}
-.toolWide {
-  align-items: center;
 }
 .toolText {
   flex: 1 1 auto;
@@ -256,6 +248,389 @@
   gap: 6px;
   font-size: 17px;
   color: var(--accent);
+}
+
+/* ------------------------------------------------------- tools as a scroll story
+   Every moving part reads a few numbers: --exit (hero), --fill (line and counter bar), --reveal and
+   --past (each card), --on and --side (each counter label). New browsers drive them with
+   scroll-driven CSS animations; older ones (iOS before 26) get the same numbers from ScrollStory.tsx,
+   which adds .storyOn. With neither, the cards sit in a plain, fully visible list. */
+@property --exit {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+@property --fill {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 1;
+}
+@property --reveal {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 1;
+}
+@property --past {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+@property --on {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+@property --side {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
+}
+
+.tools {
+  --motion: 1;
+  --blur: 1;
+  overflow-x: clip;
+}
+.storyBar {
+  position: sticky;
+  top: calc(53px + env(safe-area-inset-top));
+  z-index: 5;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: clamp(20px, 4vw, 36px) calc(var(--gutter) * -1) 0;
+  padding: 12px var(--gutter) 14px;
+  background: color-mix(in srgb, var(--mist) 82%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.dial {
+  display: grid;
+  justify-items: center;
+  min-height: clamp(36px, 7vw, 60px);
+}
+.dialLabel {
+  grid-area: 1 / 1;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  white-space: nowrap;
+  opacity: var(--on);
+  filter: blur(calc((1 - var(--on)) * 8px * var(--blur)));
+  translate: 0 calc((1 - var(--on)) * 10px * var(--side) * var(--motion));
+}
+.dialLabel b {
+  font-size: clamp(32px, 7vw, 58px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.dialLabel small {
+  font-size: clamp(15px, 2.2vw, 20px);
+  color: var(--muted);
+}
+.dialLabel em {
+  font-style: normal;
+  font-size: clamp(15px, 2.2vw, 20px);
+  font-weight: 600;
+  color: var(--accent);
+}
+.dialBar {
+  position: relative;
+  width: min(240px, 60vw);
+  height: 2px;
+  background: var(--line);
+}
+.dialBar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent-fill);
+  transform-origin: left;
+  transform: scaleX(var(--fill));
+}
+
+/* The plain list (no motion support at all): the cards as before, one per row. */
+.story {
+  position: relative;
+  display: grid;
+  gap: clamp(12px, 2vw, 20px);
+  max-width: 960px;
+  margin: clamp(28px, 5vw, 48px) auto 0;
+  padding: 0;
+  list-style: none;
+}
+.storyCard {
+  flex-direction: column;
+  width: fit-content;
+  max-width: min(100%, 560px);
+  opacity: calc(var(--reveal) * (1 - var(--past) * 0.85));
+  translate: calc((1 - var(--reveal)) * 80px * var(--dir, 1) * var(--motion)) calc(var(--past) * -28px * var(--motion));
+  filter: blur(calc(((1 - var(--reveal)) * 10px + var(--past) * 6px) * var(--blur)));
+}
+.storyCard .toolTitle {
+  font-size: clamp(28px, 4vw, 38px);
+}
+.storyCard .toolBody {
+  max-width: 34ch;
+  font-size: clamp(18px, 2.2vw, 21px);
+  line-height: 1.45;
+}
+.storyCard .stat {
+  font-size: 15px;
+}
+.storyCard .open {
+  font-size: 19px;
+}
+.storyCard .room {
+  align-self: center;
+}
+
+/* The story layout. .storyMotion is on when the CSS can run it, .storyOn when ScrollStory.tsx does. */
+.storyOn .storyBar {
+  display: flex;
+}
+.storyOn .story {
+  display: block;
+  padding-bottom: max(30svh, 200px);
+}
+.storyOn .story::before,
+.storyOn .story::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: max(30svh, 200px);
+  left: 6px;
+  width: 2px;
+}
+.storyOn .story::before {
+  background: var(--line);
+}
+.storyOn .story::after {
+  background: var(--accent-fill);
+  transform-origin: top;
+  transform: scaleY(var(--fill));
+}
+.storyOn .storyItem {
+  --dir: 1;
+  position: relative;
+  padding-bottom: max(48px, 9svh);
+  padding-left: 36px;
+}
+.storyOn .storyItem::before {
+  content: '';
+  position: absolute;
+  top: 30px;
+  left: 1px;
+  z-index: 1;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: color-mix(in oklch, var(--accent-fill) calc(var(--reveal) * 100%), var(--line));
+  box-shadow: 0 0 0 4px var(--mist);
+}
+@media (min-width: 1024px) {
+  .storyOn .story::before,
+  .storyOn .story::after {
+    left: calc(50% - 1px);
+  }
+  .storyOn .storyItem {
+    display: flex;
+    align-items: flex-start;
+    padding-left: calc(50% + 48px);
+  }
+  .storyOn .storyItem::before {
+    left: calc(50% - 6px);
+  }
+  .storyOn .storyItem:nth-child(even) {
+    --dir: -1;
+    justify-content: flex-end;
+    padding-left: 0;
+    padding-right: calc(50% + 48px);
+  }
+}
+
+@supports (animation-timeline: view()) {
+  .tools {
+    timeline-scope: var(--scope);
+  }
+  .hero {
+    animation: heroExit linear both;
+    animation-timeline: view();
+    animation-range: exit;
+  }
+  .tools .storyBar {
+    display: flex;
+    animation: storyJourney linear both;
+    animation-timeline: --journey;
+    animation-range: cover 50vh cover calc(100% - 50vh);
+  }
+  .tools .story {
+    display: block;
+    padding-bottom: max(30svh, 200px);
+    view-timeline: --journey block;
+    animation: storyJourney linear both;
+    animation-timeline: --journey;
+    animation-range: cover 50vh cover calc(100% - 50vh);
+  }
+  .tools .story::before,
+  .tools .story::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: max(30svh, 200px);
+    left: 6px;
+    width: 2px;
+  }
+  .tools .story::before {
+    background: var(--line);
+  }
+  .tools .story::after {
+    background: var(--accent-fill);
+    transform-origin: top;
+    transform: scaleY(var(--fill));
+  }
+  .tools .storyItem {
+    --dir: 1;
+    position: relative;
+    padding-bottom: max(48px, 9svh);
+    padding-left: 36px;
+    view-timeline-name: var(--tl);
+    view-timeline-axis: block;
+    view-timeline-inset: 55% 45%;
+    animation:
+      storyReveal linear both,
+      storySettle linear both;
+    animation-timeline: view(), view();
+    animation-range:
+      cover 12vh cover 52vh,
+      cover 62vh cover 100%;
+  }
+  .tools .storyItem::before {
+    content: '';
+    position: absolute;
+    top: 30px;
+    left: 1px;
+    z-index: 1;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: color-mix(in oklch, var(--accent-fill) calc(var(--reveal) * 100%), var(--line));
+    box-shadow: 0 0 0 4px var(--mist);
+  }
+  /* A label is on while its card (and the gap after it) crosses a line 55% down the screen; the
+     inset turns the screen into that line, so one label hands over to the next with no overlap. */
+  .dialLabel {
+    animation: dialLabel linear both;
+    animation-timeline: var(--tl);
+  }
+  .dialLabel:first-child {
+    animation-name: dialFirst;
+  }
+  .dialLabel:last-child {
+    animation-name: dialLast;
+  }
+  @media (min-width: 1024px) {
+    .tools .story::before,
+    .tools .story::after {
+      left: calc(50% - 1px);
+    }
+    .tools .storyItem {
+      display: flex;
+      align-items: flex-start;
+      padding-left: calc(50% + 48px);
+    }
+    .tools .storyItem::before {
+      left: calc(50% - 6px);
+    }
+    .tools .storyItem:nth-child(even) {
+      --dir: -1;
+      justify-content: flex-end;
+      padding-left: 0;
+      padding-right: calc(50% + 48px);
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Fades only: no sliding, drifting or blur. */
+  .tools,
+  .hero {
+    --motion: 0;
+    --blur: 0;
+  }
+}
+
+@keyframes heroExit {
+  to {
+    --exit: 1;
+  }
+}
+@keyframes storyJourney {
+  from {
+    --fill: 0;
+  }
+  to {
+    --fill: 1;
+  }
+}
+@keyframes storyReveal {
+  from {
+    --reveal: 0;
+    animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
+  }
+  to {
+    --reveal: 1;
+  }
+}
+@keyframes storySettle {
+  from {
+    --past: 0;
+    animation-timing-function: cubic-bezier(0.11, 0, 0.5, 0);
+  }
+  to {
+    --past: 1;
+  }
+}
+@keyframes dialLabel {
+  0% {
+    --on: 0;
+    --side: 1;
+  }
+  15% {
+    --on: 1;
+    --side: 1;
+  }
+  85% {
+    --on: 1;
+    --side: -1;
+  }
+  100% {
+    --on: 0;
+    --side: -1;
+  }
+}
+@keyframes dialFirst {
+  0%,
+  85% {
+    --on: 1;
+    --side: -1;
+  }
+  100% {
+    --on: 0;
+    --side: -1;
+  }
+}
+@keyframes dialLast {
+  0% {
+    --on: 0;
+    --side: 1;
+  }
+  15%,
+  100% {
+    --on: 1;
+    --side: 1;
+  }
 }
 
 /* the small room picture on the seat tile */
@@ -353,16 +728,7 @@
   color: var(--muted);
 }
 
-@media (max-width: 700px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
-}
 @media (max-width: 600px) {
-  .toolWide {
-    flex-direction: column;
-    align-items: stretch;
-  }
   .room {
     align-self: center;
   }
