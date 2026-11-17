@@ -317,7 +317,9 @@
   gap: 10px;
   white-space: nowrap;
   opacity: var(--on);
-  filter: blur(calc((1 - var(--on)) * 8px * var(--blur)));
+  /* Blur under half a pixel snaps to none: Safari can draw a stray line at the edge of a barely-blurred layer. */
+  filter: blur(max(0px, calc((1 - var(--on)) * 8px * var(--blur) - 0.5px)));
+  will-change: opacity, filter;
   translate: 0 calc((1 - var(--on)) * 10px * var(--side) * var(--motion));
 }
 .dialLabel b {
@@ -367,7 +369,11 @@
   max-width: min(100%, 560px);
   opacity: calc(var(--reveal) * (1 - var(--past) * 0.85));
   translate: calc((1 - var(--reveal)) * 80px * var(--dir, 1) * var(--motion)) calc(var(--past) * -28px * var(--motion));
-  filter: blur(calc(((1 - var(--reveal)) * 10px + var(--past) * 6px) * var(--blur)));
+  filter: blur(max(0px, calc(((1 - var(--reveal)) * 10px + var(--past) * 6px) * var(--blur) - 0.5px)));
+  /* Its own stable layer: keeps Safari from drawing seams at the card edge while it blurs and moves. */
+  will-change: opacity, translate, filter;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 .storyCard .toolTitle {
   font-size: clamp(28px, 4vw, 38px);
@@ -464,7 +470,7 @@
     display: flex;
     animation: storyJourney linear both;
     animation-timeline: --journey;
-    animation-range: cover 50vh cover calc(100% - 50vh);
+    animation-range: cover 50svh cover calc(100% - 50svh);
   }
   .tools .story {
     display: block;
@@ -472,7 +478,7 @@
     view-timeline: --journey block;
     animation: storyJourney linear both;
     animation-timeline: --journey;
-    animation-range: cover 50vh cover calc(100% - 50vh);
+    animation-range: cover 50svh cover calc(100% - 50svh);
   }
   .tools .story::before,
   .tools .story::after {
@@ -504,8 +510,8 @@
       storySettle linear both;
     animation-timeline: view(), view();
     animation-range:
-      cover 12vh cover 52vh,
-      cover 62vh cover 100%;
+      cover 12svh cover 52svh,
+      cover 62svh cover 100%;
   }
   .tools .storyItem::before {
     content: '';
