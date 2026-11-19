@@ -89,6 +89,8 @@ describe('inboxScript', () => {
     inboxKey: 'hw_abc"\'`${x}__ENDPOINT__',
     sectionList: 'pgdm2026sec-e@imi.edu',
     facultyDomain: 'imi.edu',
+    placementsEndpoint: 'https://section-e.example/api/placements/inbox',
+    invitesEndpoint: 'https://section-e.example/api/placements/invites',
   });
 
   it('is valid JavaScript with every value safely quoted', () => {

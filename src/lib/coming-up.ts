@@ -26,7 +26,7 @@ export interface UpcomingItem {
   date: string;
   time: string | null;
   /** 'homework' and 'test' come from elsewhere on the site; the rest are admin-entered dates. */
-  kind: KeyDateKind | 'homework' | 'test';
+  kind: KeyDateKind | 'homework' | 'test' | 'placement';
   label: string;
   title: string;
   subject: string | null;
@@ -39,6 +39,17 @@ export interface HomeworkLike {
   title: string;
   done: boolean;
   due: { date: string | null; time: string | null };
+}
+
+/** A Pre-Placement Talk the student is on the attendee list for. */
+export interface PlacementLike {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  venue: string | null;
+  notes: string;
+  endTime?: string | null;
 }
 
 export interface QuizLike {
@@ -64,6 +75,7 @@ const timeOf = (iso: string) =>
 export function comingUp(
   input: { dates: KeyDate[]; homework: HomeworkLike[]; quizzes: QuizLike[] },
   opts: { today?: string; days?: number; limit?: number } = {},
+  placements: PlacementLike[] = [],
 ): UpcomingItem[] {
   const today = opts.today ?? todayISO();
   const last = addDays(today, opts.days ?? 14);
@@ -87,7 +99,12 @@ export function comingUp(
     }
   }
 
-  const ORDER = ['exam', 'quiz', 'presentation', 'test', 'homework', 'event'];
+  for (const p of placements) {
+    if (!within(p.date)) continue;
+    items.push({ key: `ppt-${p.id}`, date: p.date, time: p.time, kind: 'placement', label: 'PPT', title: p.title, subject: p.venue, href: null });
+  }
+
+  const ORDER = ['exam', 'quiz', 'presentation', 'placement', 'test', 'homework', 'event'];
   items.sort(
     (a, b) =>
       a.date.localeCompare(b.date) || (a.time ?? '99:99').localeCompare(b.time ?? '99:99') || ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind) || a.title.localeCompare(b.title),

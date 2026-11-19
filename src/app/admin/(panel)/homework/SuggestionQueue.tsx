@@ -348,6 +348,7 @@ function InboxSetup({ inbox, now }: { inbox: InboxInfo; now: number }) {
       <p className="hint">
         A short script runs in your own college Google account and sends new faculty emails to the section here every 30 minutes. The site keeps
         only the sentences that mention a deadline, never the whole email.
+        The same script also forwards placement emails and sends PPT calendar invites from your calendar.
       </p>
       <form
         className={sq.setupForm}

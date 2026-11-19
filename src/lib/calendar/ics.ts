@@ -14,6 +14,8 @@ export interface CalendarEvent {
   location: string | null;
   description: string | null;
   cancelled: boolean;
+  /** Reminders as ISO-8601 durations before the start, e.g. '-P1D', '-PT1H'. */
+  alarms?: string[];
 }
 
 /** Offset of `tz` from UTC at `utcMs`, in minutes (Asia/Kolkata → 330). */
@@ -96,7 +98,12 @@ export function buildCalendar(opts: { name: string; tz: string; events: Calendar
     );
     if (e.location) lines.push(`LOCATION:${escapeText(e.location)}`);
     if (e.description) lines.push(`DESCRIPTION:${escapeText(e.description)}`);
-    lines.push(`STATUS:${e.cancelled ? 'CANCELLED' : 'CONFIRMED'}`, 'TRANSP:OPAQUE', 'END:VEVENT');
+    lines.push(`STATUS:${e.cancelled ? 'CANCELLED' : 'CONFIRMED'}`, 'TRANSP:OPAQUE');
+    for (const trigger of e.alarms ?? []) {
+      // DISPLAY alarms must carry a DESCRIPTION (RFC 5545 3.6.6).
+      lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${escapeText(e.summary)}`, `TRIGGER:${trigger}`, 'END:VALARM');
+    }
+    lines.push('END:VEVENT');
   }
   lines.push('END:VCALENDAR');
   return lines.map(foldLine).join('\r\n') + '\r\n';

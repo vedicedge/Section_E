@@ -93,6 +93,7 @@ export function Roster({ roster }: { roster: RosterEntry[] }) {
                   <th scope="col">Roll no.</th>
                   <th scope="col">Name</th>
                   <th scope="col">Status</th>
+                  <th scope="col">Email</th>
                   <th scope="col">Last seen</th>
                   <th scope="col" aria-label="Actions" />
                 </tr>
@@ -116,6 +117,7 @@ export function Roster({ roster }: { roster: RosterEntry[] }) {
                         <span className="pill pill--muted">Not yet</span>
                       )}
                     </td>
+                    <td>{r.hasEmail ? <span aria-label="Has email">✓</span> : <span className="dim" aria-label="No email">—</span>}</td>
                     <td className="dim" style={{ fontSize: 13 }}>
                       {r.lastSeenAt ? formatDateTime(r.lastSeenAt) : '—'}
                     </td>

@@ -2,6 +2,9 @@ import Link from 'next/link';
 import { comingUp, countdownLabel, examCountdown, type UpcomingItem } from '@/lib/coming-up';
 import { upcomingKeyDates } from '@/lib/key-dates';
 import { homeworkForStudent } from '@/lib/homework/repo';
+import { placementsFor } from '@/lib/placements/repo';
+import { pptSummary } from '@/lib/placements/format';
+import { startInstant } from '@/lib/placements/reminders';
 import { listPublishedQuizzes } from '@/lib/quizzes/repo';
 import { addDays, formatClock, formatDay, todayISO, weekdayOf } from '@/lib/time';
 import styles from '@/components/Board.module.css';
@@ -55,17 +58,28 @@ function Row({ item, today }: { item: UpcomingItem; today: string }) {
  */
 export async function ComingUp({ rollNo }: { rollNo: string | null }) {
   const today = todayISO();
-  const [dates, homework, quizzes] = await Promise.all([
+  const [dates, homework, quizzes, placementsToday] = await Promise.all([
     upcomingKeyDates(today),
     rollNo ? homeworkForStudent(rollNo).catch(() => []) : Promise.resolve([]),
     rollNo ? listPublishedQuizzes().catch(() => []) : Promise.resolve([]),
+    rollNo ? placementsFor(rollNo, today).catch(() => []) : Promise.resolve([]),
   ]);
-  const items = rollNo ? comingUp({ dates, homework, quizzes }, { today, days: 14, limit: 8 }) : [];
+  // A PPT that already started (say, this morning) is no longer news.
+  const now = Date.now();
+  const placements = placementsToday.filter((p) => startInstant(p.date, p.time).getTime() > now);
+  const items = rollNo ? comingUp({ dates, homework, quizzes }, { today, days: 14, limit: 8 }, placements) : [];
+  const nextPpt = placements[0];
   const countdown = examCountdown(dates, today);
   if (!items.length && !countdown && !rollNo) return null;
 
   return (
     <div className={styles.upGrid}>
+      {rollNo && nextPpt && (
+        <section className={styles.card} style={{ gridColumn: '1 / -1' }} aria-label="Pre-Placement Talk" data-testid="ppt-notice">
+          <p className={styles.rowTitle}>You&apos;re on the attendee list for {pptSummary(nextPpt)}</p>
+          {nextPpt.notes && <p className={styles.meta}>{nextPpt.notes}</p>}
+        </section>
+      )}
       {rollNo && (
         <section className={styles.card} aria-labelledby="up-title" data-testid="coming-up">
           <h2 id="up-title" className={styles.panelTitle}>

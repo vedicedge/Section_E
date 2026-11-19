@@ -302,4 +302,45 @@ export const MIGRATIONS: string[] = [
     PRIMARY KEY (roll_no, question_id)
   );
   `,
+
+  // 12 — PPT alerts: student emails, and placement events parsed from placement emails (admin-approved).
+  `
+  ALTER TABLE students ADD COLUMN email TEXT;
+
+  CREATE TABLE placement_events (
+    id                TEXT PRIMARY KEY,
+    company           TEXT NOT NULL,
+    title             TEXT NOT NULL DEFAULT '',
+    on_date           DATE,
+    at_time           TEXT,
+    end_time          TEXT,
+    venue             TEXT,
+    notes             TEXT NOT NULL DEFAULT '',
+    source_email_id   TEXT UNIQUE,
+    thread_url        TEXT,
+    replaces_id       TEXT,
+    status            TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'dismissed', 'skipped')),
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    approved_at       TIMESTAMPTZ,
+    invite_claimed_at TIMESTAMPTZ,
+    invite_sent_at    TIMESTAMPTZ,
+    calendar_event_id TEXT,
+    reminded_eve_at   TIMESTAMPTZ,
+    reminded_hour_at  TIMESTAMPTZ
+  );
+  CREATE INDEX placement_events_status_idx ON placement_events (status, on_date);
+
+  CREATE TABLE placement_attendees (
+    event_id TEXT NOT NULL REFERENCES placement_events(id) ON DELETE CASCADE,
+    roll_no  TEXT NOT NULL,
+    PRIMARY KEY (event_id, roll_no)
+  );
+  `,
+
+  // 13 — withdrawing an approved PPT: the calendar event it created is cancelled by the admin's script.
+  `
+  ALTER TABLE placement_events ADD COLUMN withdrawn_at TIMESTAMPTZ;
+  ALTER TABLE placement_events ADD COLUMN cancel_claimed_at TIMESTAMPTZ;
+  ALTER TABLE placement_events ADD COLUMN cancel_sent_at TIMESTAMPTZ;
+  `,
 ];

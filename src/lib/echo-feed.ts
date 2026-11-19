@@ -79,6 +79,8 @@ export interface EchoFeed {
     /** Roll number -> seat. No names. */
     seats: { rollNo: string; row: string; seat: number; seatsInRow: number }[];
   }[];
+  /** Approved placement talks from today on: when and where, plus the listed roll numbers (no names or emails). */
+  placements: { title: string; date: string; time: string; venue: string | null; notes: string; rolls: string[] }[];
 }
 
 /** Group lists by subject: each group's name, topic and size only (members are never included). */
@@ -141,8 +143,32 @@ async function seating(today: string): Promise<EchoFeed['seating']> {
   }));
 }
 
+/** Approved, upcoming PPTs with the roll numbers listed for each. A replaced PPT is dismissed on approval, so it never shows twice. */
+async function placements(today: string): Promise<EchoFeed['placements']> {
+  const events = await query<{ id: string; title: string; date: string; time: string; venue: string | null; notes: string }>(
+    `SELECT id, title, on_date::text AS date, at_time AS time, venue, notes
+       FROM placement_events
+      WHERE status = 'approved' AND on_date IS NOT NULL AND at_time IS NOT NULL AND on_date >= $1::date
+      ORDER BY on_date, at_time, title`,
+    [today],
+  );
+  if (!events.length) return [];
+  const rolls = await query<{ event_id: string; roll_no: string }>(
+    `SELECT event_id, roll_no FROM placement_attendees WHERE event_id = ANY($1::text[]) ORDER BY roll_no`,
+    [events.map((e) => e.id)],
+  );
+  return events.map((e) => ({
+    title: e.title,
+    date: e.date,
+    time: e.time,
+    venue: e.venue,
+    notes: e.notes,
+    rolls: rolls.filter((r) => r.event_id === e.id).map((r) => r.roll_no),
+  }));
+}
+
 export async function buildEchoFeed(today = todayISO()): Promise<EchoFeed> {
-  const [quizzes, study, announcements, keyDates, homeworkRecords, ctx, groups, seats, classes] = await Promise.all([
+  const [quizzes, study, announcements, keyDates, homeworkRecords, ctx, groups, seats, classes, talks] = await Promise.all([
     listPublishedQuizzes(),
     listStudyMaterials(),
     liveAnnouncements(today),
@@ -152,6 +178,7 @@ export async function buildEchoFeed(today = todayISO()): Promise<EchoFeed> {
     groupTopics(),
     seating(today),
     timetable(),
+    placements(today),
   ]);
   const homework = await resolveAll(homeworkRecords, ctx, today);
   return {
@@ -176,5 +203,6 @@ export async function buildEchoFeed(today = todayISO()): Promise<EchoFeed> {
     groups,
     timetable: classes,
     seating: seats,
+    placements: talks,
   };
 }
