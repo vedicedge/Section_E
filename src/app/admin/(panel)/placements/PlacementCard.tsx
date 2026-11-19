@@ -11,11 +11,26 @@ export function PlacementCard({ p }: { p: PlacementView }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const [paste, setPaste] = useState('');
+  const [confirmingWithdraw, setConfirmingWithdraw] = useState(false);
   const pending = p.status === 'pending';
   const noEmail = p.attendees.filter((a) => !a.hasEmail).length;
   const n = p.attendees.length;
 
-  async function act(action: 'approve' | 'dismiss', form?: HTMLFormElement) {
+  async function pasteList() {
+    setBusy(true);
+    setMsg(null);
+    setNote(null);
+    const res = await api<{ count: number }>(`/api/admin/placements/${p.id}/attendees`, { text: paste });
+    setBusy(false);
+    if (!res.ok) return setMsg(res.error);
+    setNote(`Attendee list replaced: ${res.data.count} ${res.data.count === 1 ? 'student' : 'students'}.`);
+    setPaste('');
+    router.refresh();
+  }
+
+  async function act(action: 'approve' | 'dismiss' | 'withdraw', form?: HTMLFormElement) {
     setBusy(true);
     setMsg(null);
     let edits: Record<string, string> | undefined;
@@ -27,6 +42,7 @@ export function PlacementCard({ p }: { p: PlacementView }) {
     const res = await api<{ status: string; pushed: number }>(`/api/admin/placements/${p.id}`, action === 'approve' ? { action, edits } : { action });
     setBusy(false);
     if (!res.ok) return setMsg(res.error);
+    setConfirmingWithdraw(false);
     router.refresh();
   }
 
@@ -37,6 +53,12 @@ export function PlacementCard({ p }: { p: PlacementView }) {
 
   const when = p.date ? [pptDay(p.date), p.time ? pptClock(p.time) : null].filter(Boolean).join(', ') : null;
   const summary = [when, p.venue].filter(Boolean).join(' · ');
+
+  const inviteState = p.inviteSentAt
+    ? 'Invite sent'
+    : p.attendees.some((a) => a.hasEmail)
+      ? 'Invite: waiting for the inbox script'
+      : 'No invites (no email addresses)';
 
   const people = (
     <>
@@ -90,6 +112,28 @@ export function PlacementCard({ p }: { p: PlacementView }) {
             <textarea className="input" name="notes" rows={2} defaultValue={p.notes} maxLength={2000} />
           </label>
           {people}
+          <label className="field">
+            <span className="label">Paste the attendee list (replaces the list above)</span>
+            <textarea
+              className="input"
+              name="paste"
+              rows={3}
+              value={paste}
+              onChange={(e) => setPaste(e.target.value)}
+              placeholder="Roll numbers, one per line or separated by commas"
+              maxLength={20000}
+            />
+          </label>
+          <div className={styles.actions}>
+            <button type="button" className="btn btn--ghost" disabled={busy || !paste.trim()} onClick={() => void pasteList()}>
+              Use this list
+            </button>
+          </div>
+          {note && (
+            <p className="notice" role="status">
+              {note}
+            </p>
+          )}
           {msg && (
             <p className="notice" role="alert">
               {msg}
@@ -116,8 +160,31 @@ export function PlacementCard({ p }: { p: PlacementView }) {
           {people}
           <p className={styles.dim} style={{ margin: 0 }}>
             {p.status === 'approved' ? 'Approved' : 'Dismissed'}
-            {p.status === 'approved' && ` · ${p.inviteSentAt ? 'Invite sent' : 'Invite: waiting for the inbox script'}`}
+            {p.status === 'approved' && ` · ${inviteState}`}
           </p>
+          {msg && (
+            <p className="notice" role="alert">
+              {msg}
+            </p>
+          )}
+          {p.status === 'approved' &&
+            (confirmingWithdraw ? (
+              <div className={styles.actions} style={{ alignItems: 'center' }}>
+                <span>Withdraw this PPT? Students stop seeing it and its calendar event is deleted.</span>
+                <button type="button" className="btn btn--accent" disabled={busy} onClick={() => act('withdraw')}>
+                  {busy ? 'Working…' : 'Yes, withdraw'}
+                </button>
+                <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setConfirmingWithdraw(false)}>
+                  Keep it
+                </button>
+              </div>
+            ) : (
+              <div className={styles.actions}>
+                <button type="button" className="btn btn--ghost" onClick={() => setConfirmingWithdraw(true)}>
+                  Withdraw
+                </button>
+              </div>
+            ))}
         </div>
       )}
     </article>

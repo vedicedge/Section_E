@@ -3,8 +3,8 @@ import { newId } from '../crypto';
 import { query, queryOne, transaction } from '../db';
 import { HttpError } from '../http';
 import { looksLikeXlsx, readWorkbook } from '../xlsx';
-import { attendeeRolls, parsePlacementEmail } from './parse';
-import { startInstant } from './reminders';
+import { attendeeRolls, parsePlacementEmail, rollsInText } from './parse';
+import { inviteEnd, remindersDue, startInstant } from './reminders';
 
 /**
  * Placement (Pre-Placement Talk) events: filled in from emails, shown to the admin as pending,
@@ -45,11 +45,16 @@ export type InviteTask = {
   endIso: string;
   location: string | null;
   description: string;
+  /** Students to invite. When the task updates an existing event, only those not yet on it. */
   guests: string[];
+  /** The Calendar event students already have from the PPT this one corrects, to be updated in place. */
+  updateCalendarEventId: string | null;
+  /** The corrected PPT's own id, for an event its script created but has not confirmed yet. */
+  replacesEventId: string | null;
 };
 
-/** A PPT with no end time in the email is assumed to run 90 minutes. */
-const DEFAULT_MINUTES = 90;
+/** A withdrawn PPT whose Calendar event the script should delete. */
+export type CancelTask = { eventId: string; calendarEventId: string };
 
 async function listedSectionEStudents(rolls: string[]): Promise<string[]> {
   if (!rolls.length) return [];
@@ -203,6 +208,11 @@ export async function approvePlacement(
         WHERE id = $1`,
       [id, edits.title ?? cur.title, date, time, edits.endTime ?? cur.end_time, edits.venue ?? cur.venue, edits.notes ?? cur.notes],
     );
+    // Approval already tells students "now", so a reminder window that is open at this moment is spent.
+    const now = new Date();
+    const open = remindersDue({ date, time, remindedEveAt: null, remindedHourAt: null }, now);
+    if (open.includes('eve')) await tx.query('UPDATE placement_events SET reminded_eve_at = $2 WHERE id = $1', [id, now.toISOString()]);
+    if (open.includes('hour')) await tx.query('UPDATE placement_events SET reminded_hour_at = $2 WHERE id = $1', [id, now.toISOString()]);
     // A corrected email takes over from the PPT it replaces.
     if (cur.replaces_id) {
       await tx.query(`UPDATE placement_events SET status = 'dismissed' WHERE id = $1 AND status = 'approved'`, [cur.replaces_id]);
@@ -212,8 +222,45 @@ export async function approvePlacement(
 }
 
 export async function dismissPlacement(id: string): Promise<void> {
-  const res = await query<{ id: string }>(`UPDATE placement_events SET status = 'dismissed' WHERE id = $1 RETURNING id`, [id]);
-  if (!res.length) throw new HttpError(404, 'That PPT no longer exists.', 'not_found');
+  const res = await query<{ id: string }>(`UPDATE placement_events SET status = 'dismissed' WHERE id = $1 AND status = 'pending' RETURNING id`, [id]);
+  if (res.length) return;
+  if (!(await queryOne('SELECT 1 FROM placement_events WHERE id = $1', [id]))) throw new HttpError(404, 'That PPT no longer exists.', 'not_found');
+  throw new HttpError(409, 'Only a pending PPT can be dismissed. Withdraw an approved one instead.', 'conflict');
+}
+
+/**
+ * Takes an approved PPT back: students stop seeing it and hearing about it, and if a Calendar event
+ * was created for it the script is told to delete it. (When it only replaced an earlier PPT and its own
+ * update was not confirmed yet, the earlier PPT's event is the one to delete.)
+ */
+export async function withdrawPlacement(id: string): Promise<void> {
+  const res = await query<{ id: string }>(
+    `UPDATE placement_events
+        SET status = 'dismissed', withdrawn_at = now(),
+            calendar_event_id = COALESCE(calendar_event_id, (SELECT p.calendar_event_id FROM placement_events p WHERE p.id = placement_events.replaces_id))
+      WHERE id = $1 AND status = 'approved' RETURNING id`,
+    [id],
+  );
+  if (res.length) return;
+  if (!(await queryOne('SELECT 1 FROM placement_events WHERE id = $1', [id]))) throw new HttpError(404, 'That PPT no longer exists.', 'not_found');
+  throw new HttpError(409, 'Only an approved PPT can be withdrawn.', 'conflict');
+}
+
+/**
+ * Replaces a pending card's attendees with the Section E students found in pasted text (the fallback
+ * when the spreadsheet could not be read). Returns how many students are now listed.
+ */
+export async function replaceAttendees(id: string, text: string): Promise<number> {
+  const rolls = await listedSectionEStudents(rollsInText(text));
+  if (!rolls.length) throw new HttpError(400, 'No Section E roll numbers found in that text. The list was not changed.');
+  await transaction(async (tx) => {
+    const cur = (await tx.query<{ status: PlacementStatus }>('SELECT status FROM placement_events WHERE id = $1 FOR UPDATE', [id])).rows[0];
+    if (!cur) throw new HttpError(404, 'That PPT no longer exists.', 'not_found');
+    if (cur.status !== 'pending') throw new HttpError(409, 'This PPT has already been handled.', 'conflict');
+    await tx.query('DELETE FROM placement_attendees WHERE event_id = $1', [id]);
+    for (const roll of rolls) await tx.query('INSERT INTO placement_attendees (event_id, roll_no) VALUES ($1, $2) ON CONFLICT DO NOTHING', [id, roll]);
+  });
+  return rolls.length;
 }
 
 export type PlacementLike = { id: string; title: string; date: string; time: string; venue: string | null; notes: string; endTime?: string | null };
@@ -234,7 +281,9 @@ const CLAIM_MS = 2 * 3600 * 1000;
 /**
  * Calendar invites the admin's Apps Script still has to create: approved events with no invite yet.
  * Each is claimed for 2 hours so a second check-in doesn't hand it out again; if the script never
- * confirms, it comes back after that. Students already invited to the PPT this one replaces are left out.
+ * confirms, it comes back after that. A correction of a PPT that already has a Calendar event comes
+ * back as an update of that event (only students not on it yet are listed as guests). A PPT with
+ * nobody to email is looked at again at every check-in, so addresses added later still get an invite.
  */
 export async function inviteTasks(now: Date): Promise<InviteTask[]> {
   const claimed = await query<{ id: string; title: string; date: string; time: string; end_time: string | null; venue: string | null; notes: string; replaces_id: string | null }>(
@@ -247,10 +296,13 @@ export async function inviteTasks(now: Date): Promise<InviteTask[]> {
   );
   const tasks: InviteTask[] = [];
   for (const e of claimed) {
+    const old = e.replaces_id
+      ? await queryOne<{ calendar_event_id: string | null; invite_sent_at: Date | null }>('SELECT calendar_event_id, invite_sent_at FROM placement_events WHERE id = $1', [e.replaces_id])
+      : null;
     const guests = (
       await query<{ email: string }>(
         `SELECT s.email FROM placement_attendees a JOIN students s ON s.roll_no = a.roll_no
-          WHERE a.event_id = $1 AND s.email IS NOT NULL AND s.email <> ''
+          WHERE a.event_id = $1 AND s.active AND s.email IS NOT NULL AND s.email <> ''
             AND a.roll_no NOT IN (
               SELECT oa.roll_no FROM placement_attendees oa
                 JOIN placement_events oe ON oe.id = oa.event_id
@@ -259,30 +311,55 @@ export async function inviteTasks(now: Date): Promise<InviteTask[]> {
         [e.id, e.replaces_id],
       )
     ).map((g) => g.email);
-    if (!guests.length) {
-      // Nobody to invite, so there is nothing for the script to do.
-      await query('UPDATE placement_events SET invite_sent_at = $2 WHERE id = $1', [e.id, now.toISOString()]);
+    const updateCalendarEventId = old?.calendar_event_id ?? null;
+    if (!guests.length && !updateCalendarEventId) {
+      // Everyone listed was already invited to the PPT this one replaces: nothing for the script to do.
+      // Otherwise nobody has an address yet: release the claim so the next check-in looks again.
+      if (old?.invite_sent_at) await query('UPDATE placement_events SET invite_sent_at = $2 WHERE id = $1', [e.id, now.toISOString()]);
+      else await query('UPDATE placement_events SET invite_claimed_at = NULL WHERE id = $1', [e.id]);
       continue;
     }
-    const start = startInstant(e.date, e.time);
-    const end = e.end_time ? startInstant(e.date, e.end_time) : new Date(start.getTime() + DEFAULT_MINUTES * 60_000);
     tasks.push({
       eventId: e.id,
       title: e.title,
-      startIso: start.toISOString(),
-      endIso: end.toISOString(),
+      startIso: startInstant(e.date, e.time).toISOString(),
+      endIso: inviteEnd(e.date, e.time, e.end_time).toISOString(),
       location: e.venue,
       description: e.notes,
       guests,
+      updateCalendarEventId,
+      replacesEventId: e.replaces_id,
     });
   }
   return tasks;
 }
 
+/**
+ * Records the Calendar event for an invite. A PPT that was taken over by a correction or withdrawn
+ * while the script was creating its event is still recorded, so the event can be found and cancelled.
+ */
 export async function confirmInvite(eventId: string, calendarEventId: string): Promise<void> {
   const res = await query<{ id: string }>(
-    `UPDATE placement_events SET invite_sent_at = now(), calendar_event_id = $2 WHERE id = $1 AND status = 'approved' RETURNING id`,
+    `UPDATE placement_events SET invite_sent_at = now(), calendar_event_id = $2
+      WHERE id = $1 AND (status = 'approved' OR (status = 'dismissed' AND calendar_event_id IS NULL)) RETURNING id`,
     [eventId, calendarEventId],
   );
   if (!res.length) throw new HttpError(404, 'No approved PPT with that id.', 'not_found');
+}
+
+/** Withdrawn PPTs whose Calendar event the script still has to delete (claimed for 2 hours at a time). */
+export async function cancelTasks(now: Date): Promise<CancelTask[]> {
+  const rows = await query<{ id: string; calendar_event_id: string }>(
+    `UPDATE placement_events SET cancel_claimed_at = $1
+      WHERE withdrawn_at IS NOT NULL AND calendar_event_id IS NOT NULL AND cancel_sent_at IS NULL
+        AND (cancel_claimed_at IS NULL OR cancel_claimed_at < $2)
+      RETURNING id, calendar_event_id`,
+    [now.toISOString(), new Date(now.getTime() - CLAIM_MS).toISOString()],
+  );
+  return rows.map((r) => ({ eventId: r.id, calendarEventId: r.calendar_event_id }));
+}
+
+export async function confirmCancel(eventId: string): Promise<void> {
+  const res = await query<{ id: string }>(`UPDATE placement_events SET cancel_sent_at = now() WHERE id = $1 AND withdrawn_at IS NOT NULL RETURNING id`, [eventId]);
+  if (!res.length) throw new HttpError(404, 'No withdrawn PPT with that id.', 'not_found');
 }

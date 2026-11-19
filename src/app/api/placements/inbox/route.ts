@@ -3,7 +3,7 @@ import { sha256 } from '@/lib/crypto';
 import { HttpError, ok, route } from '@/lib/http';
 import { enforce } from '@/lib/rate-limit';
 import { verifyInboxKey } from '@/lib/homework/inbox';
-import { ingestPlacementEmails, inviteTasks } from '@/lib/placements/repo';
+import { cancelTasks, ingestPlacementEmails, inviteTasks } from '@/lib/placements/repo';
 import { sendPlacementReminders } from '@/lib/placements/reminders';
 
 export const dynamic = 'force-dynamic';
@@ -56,5 +56,5 @@ export const POST = route(async (req) => {
   } catch (err) {
     console.error('Placement reminders failed:', err);
   }
-  return ok({ ok: true, ...result, invites: await inviteTasks(now) });
+  return ok({ ok: true, ...result, invites: await inviteTasks(now), cancels: await cancelTasks(now) });
 });

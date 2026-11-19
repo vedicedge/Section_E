@@ -861,7 +861,7 @@ ${istDay(5)}, MM II, End-term exam`);
       threadUrl: null,
       subject: `Pre-Placement Talk || ${company}`,
       receivedAt: '2026-11-18T05:39:42Z',
-      body: [`${company} will be conducting its Pre-Placement Talk.`, '- Date: 20th November 2026', '- Time: 7:00 PM', '- Venue: Auditorium'].join('\n'),
+      body: [`${company} will be conducting its Pre-Placement Talk.`, '- Date: 20th November 2037', '- Time: 7:00 PM', '- Venue: Auditorium'].join('\n'),
       attachments: [{ name: 'attendees.xlsx', dataBase64: await list(rolls) }],
     });
     const checkIn = async (emails: unknown[] = []) => {
@@ -933,8 +933,8 @@ ${istDay(5)}, MM II, End-term exam`);
     const stamp = Date.now().toString(36).replace(/\d/g, (c) => 'abcdefghij'[Number(c)]!);
     const company = `Notice Works ${stamp}`;
     const title = `${company} PPT`;
-    // Today in India, at a time that gets earlier with every run, so this run's PPT is always the student's next one.
-    const ist = new Date(Date.now() + 330 * 60_000);
+    // Tomorrow in India (a PPT that has already started is not shown), at a time that gets earlier with every run, so this run's PPT is always the student's next one.
+    const ist = new Date(Date.now() + 330 * 60_000 + 86_400_000);
     const today = ist.toISOString().slice(0, 10);
     const minute = 1439 - (ist.getUTCHours() * 60 + ist.getUTCMinutes());
     const hhmm = `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
@@ -1024,6 +1024,139 @@ ${istDay(5)}, MM II, End-term exam`);
     await expect(visitor.getByTestId('ppt-notice')).toHaveCount(0);
     await visitor.close();
     await student.close();
+    await admin.close();
+  });
+  test('a corrected PPT updates the calendar event in place, a withdrawn one is cancelled, and a list can be pasted', async ({ browser, request }) => {
+    const admin = await browser.newContext({ storageState: adminState });
+    const origin = { Origin: 'http://localhost:3200' };
+    const issued = await admin.request.post('/api/admin/homework/inbox-key', { data: { sectionList: 'pgdm2026sec-e@imi.edu', facultyDomain: 'imi.edu' }, headers: origin });
+    const key = /const INBOX_KEY = "([^"]+)"/.exec((await issued.json()).script)?.[1];
+    expect(key).toBeTruthy();
+    const auth = { Authorization: `Bearer ${key}` };
+    expect((await admin.request.post('/api/admin/students/emails', { data: { text: '26PGDM901 p901@imi.edu\n26PGDM902 p902@imi.edu' }, headers: origin })).status()).toBe(200);
+
+    const stamp = Date.now().toString(36).replace(/\d/g, (c) => 'abcdefghij'[Number(c)]!);
+    const company = `Lifecycle Labs ${stamp}`;
+    const title = `${company} PPT`;
+    const ExcelJS = (await import('exceljs')).default;
+    async function list(rolls: string[]) {
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('Attendees');
+      ws.addRow(['Roll No', 'Name']);
+      rolls.forEach((r, i) => ws.addRow([r, `Student ${i}`]));
+      return Buffer.from(await wb.xlsx.writeBuffer()).toString('base64');
+    }
+    const mail = async (id: string, name: string, rolls: string[] | null) => ({
+      id,
+      threadUrl: null,
+      subject: `Pre-Placement Talk || ${name}`,
+      receivedAt: '2026-11-18T05:39:42Z',
+      body: [`${name} will be conducting its Pre-Placement Talk.`, '- Date: 20th November 2037', '- Time: 7:00 PM', '- Venue: Auditorium'].join('\n'),
+      attachments: [{ name: 'attendees.xlsx', dataBase64: rolls ? await list(rolls) : Buffer.from('not a spreadsheet').toString('base64') }],
+    });
+    type Invite = { eventId: string; title: string; startIso: string; endIso: string; guests: string[]; updateCalendarEventId: string | null; replacesEventId: string | null };
+    type Reply = { added: number; invites: Invite[]; cancels: { eventId: string; calendarEventId: string }[] };
+    const checkIn = async (emails: unknown[] = []) => {
+      const res = await request.post('/api/placements/inbox', { data: { emails }, headers: auth });
+      expect(res.status()).toBe(200);
+      return (await res.json()) as Reply;
+    };
+    const confirm = (data: object) => request.post('/api/placements/invites', { data, headers: auth });
+    const page = await admin.newPage();
+    const card = (status: string, name = title) => page.locator(`[data-testid=placement-card][data-status=${status}]`, { hasText: name });
+
+    // The server refuses impossible values instead of failing later.
+    for (const edits of [{ time: '25:99' }, { time: '24:00' }, { date: '2026-02-31' }, { endTime: '7pm' }]) {
+      const res = await admin.request.post('/api/admin/placements/no-such-card', { data: { action: 'approve', edits }, headers: origin });
+      expect(res.status(), JSON.stringify(edits)).toBe(422); // the site's standard validation error, with a plain message
+    }
+
+    // First PPT: approved, invited and confirmed with a calendar id.
+    await checkIn([await mail(`ppt-e2e-lc1-${stamp}`, company, ['26PGDM901'])]);
+    await page.goto('/admin/placements');
+    await card('pending').getByRole('button', { name: 'Approve' }).click();
+    await expect(card('approved')).toHaveCount(1);
+    const first = (await checkIn()).invites.filter((i) => i.title === title);
+    expect(first).toHaveLength(1);
+    expect(first[0]).toMatchObject({ guests: ['p901@imi.edu'], updateCalendarEventId: null });
+    expect((await confirm({ eventId: first[0]!.eventId, calendarEventId: 'cal-lifecycle' })).status()).toBe(200);
+
+    // A correction with a new time and another student: the task updates the event students already have.
+    await checkIn([await mail(`ppt-e2e-lc2-${stamp}`, company, ['26PGDM901', '26PGDM902'])]);
+    await page.goto('/admin/placements');
+    const update = card('pending');
+    await update.getByLabel('Starts').fill('18:30');
+    await update.getByLabel('Ends (optional)').fill('17:00'); // before the start: the invite falls back to 90 minutes
+    await update.getByRole('button', { name: 'Approve' }).click();
+    await expect(card('approved')).toHaveCount(1);
+    const second = (await checkIn()).invites.filter((i) => i.title === title);
+    expect(second).toHaveLength(1);
+    expect(second[0]).toMatchObject({
+      updateCalendarEventId: 'cal-lifecycle',
+      replacesEventId: first[0]!.eventId,
+      guests: ['p902@imi.edu'],
+      startIso: '2037-11-20T13:00:00.000Z',
+      endIso: '2037-11-20T14:30:00.000Z',
+    });
+    expect((await confirm({ eventId: second[0]!.eventId, calendarEventId: 'cal-lifecycle' })).status()).toBe(200);
+    expect((await checkIn()).invites.filter((i) => i.title === title)).toHaveLength(0);
+    // The replaced PPT's own row already has its event id, so a late confirm for it changes nothing.
+    expect((await confirm({ eventId: first[0]!.eventId, calendarEventId: 'cal-late' })).status()).toBe(404);
+
+    // Withdrawing asks first, then stops the PPT and hands the script a cancel task, once.
+    await page.goto('/admin/placements');
+    await card('approved').getByRole('button', { name: 'Withdraw' }).click();
+    await expect(card('approved')).toContainText('Withdraw this PPT?');
+    await card('approved').getByRole('button', { name: 'Keep it' }).click();
+    await expect(card('approved')).toHaveCount(1);
+    await card('approved').getByRole('button', { name: 'Withdraw' }).click();
+    await card('approved').getByRole('button', { name: 'Yes, withdraw' }).click();
+    await expect(card('approved')).toHaveCount(0);
+    await expect(card('dismissed')).toHaveCount(2);
+    expect((await checkIn()).cancels).toEqual([{ eventId: second[0]!.eventId, calendarEventId: 'cal-lifecycle' }]);
+    expect((await checkIn()).cancels).toHaveLength(0); // claimed: not handed out again at once
+    expect((await confirm({ eventId: second[0]!.eventId, cancelled: true })).status()).toBe(200);
+    // Only an approved PPT can be withdrawn, and only a pending one dismissed.
+    expect((await admin.request.post(`/api/admin/placements/${second[0]!.eventId}`, { data: { action: 'withdraw' }, headers: origin })).status()).toBe(409);
+    expect((await admin.request.post(`/api/admin/placements/${second[0]!.eventId}`, { data: { action: 'dismiss' }, headers: origin })).status()).toBe(409);
+
+    // A spreadsheet that cannot be read leaves an empty card; pasting the list fills it in.
+    const pasteCompany = `Paste Partners ${stamp}`;
+    const pasteTitle = `${pasteCompany} PPT`;
+    await checkIn([await mail(`ppt-e2e-paste-${stamp}`, pasteCompany, null)]);
+    await page.goto('/admin/placements');
+    const empty = card('pending', pasteTitle);
+    await expect(empty).toContainText('0 students');
+    await empty.getByLabel(/Paste the attendee list/).fill('nothing useful here');
+    await empty.getByRole('button', { name: 'Use this list' }).click();
+    await expect(empty).toContainText('No Section E roll numbers found');
+    await empty.getByLabel(/Paste the attendee list/).fill('26pgdm905, 26PGDM902\n99PGDM999 and 26PGDM905 again');
+    await empty.getByRole('button', { name: 'Use this list' }).click();
+    await expect(empty).toContainText('Attendee list replaced: 2 students.');
+    await expect(empty).toContainText('2 students');
+    await empty.getByLabel('Starts').fill('19:00');
+    await empty.getByRole('button', { name: 'Approve' }).click();
+    await expect(card('approved', pasteTitle)).toHaveCount(1);
+    // Only students with an address are invited: 26PGDM902 has an address, 26PGDM905 does not yet.
+    const pasted = (await checkIn()).invites.filter((i) => i.title === pasteTitle);
+    expect(pasted).toHaveLength(1);
+    expect(pasted[0]!.guests).toEqual(['p902@imi.edu']);
+    expect((await confirm({ eventId: pasted[0]!.eventId, calendarEventId: 'cal-paste' })).status()).toBe(200);
+
+    // A PPT whose students have no addresses says so, and is offered again as soon as an address is added.
+    const noMailCompany = `Quiet Quarters ${stamp}`;
+    const noMailTitle = `${noMailCompany} PPT`;
+    await checkIn([await mail(`ppt-e2e-nomail-${stamp}`, noMailCompany, ['26PGDM905'])]);
+    await page.goto('/admin/placements');
+    await card('pending', noMailTitle).getByRole('button', { name: 'Approve' }).click();
+    await expect(card('approved', noMailTitle)).toBeVisible();
+    expect((await checkIn()).invites.filter((i) => i.title === noMailTitle)).toHaveLength(0);
+    await page.goto('/admin/placements');
+    await expect(card('approved', noMailTitle)).toContainText('No invites (no email addresses)');
+    expect((await admin.request.post('/api/admin/students/emails', { data: { text: '26PGDM905 p905@imi.edu' }, headers: origin })).status()).toBe(200);
+    const later = (await checkIn()).invites.filter((i) => i.title === noMailTitle);
+    expect(later).toHaveLength(1);
+    expect(later[0]!.guests).toEqual(['p905@imi.edu']);
     await admin.close();
   });
 });

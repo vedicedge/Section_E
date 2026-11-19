@@ -45,7 +45,7 @@ describe('generated script behaviour', () => {
     expect(script).toContain('MAX_ATTACHMENTS = 5');
   });
   it('checks the sender per message, dedupes invites and keeps properties small', () => {
-    for (const s of ['m.getFrom().toLowerCase().indexOf(sender)', 'PLACEMENT_CREATED', 'slice(-300)', '(filename:xlsx OR filename:xls)', 'finally']) {
+    for (const s of ['.trim().toLowerCase() !== sender', 'slice(-300)', 'CalendarApp.getEventById', 'deleteEvent()', 'cancelled: true', 'PLACEMENT_CREATED', 'slice(-300)', '(filename:xlsx OR filename:xls)', 'finally']) {
       expect(script).toContain(s);
     }
   });

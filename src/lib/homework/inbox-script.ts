@@ -82,8 +82,12 @@ function checkHomework() {
   if (res.getResponseCode() !== 200) throw new Error('Section E said ' + res.getResponseCode() + ': ' + res.getContentText());
 
   emails.forEach(function (e) { seen.push(e.id); });
-  props.setProperty('SEEN', JSON.stringify(seen.slice(-500)));
-
+  // At most 300 ids: a script property holds about 9 KB, and 500 ids would not fit.
+  try {
+    props.setProperty('SEEN', JSON.stringify(seen.slice(-300)));
+  } catch (err) {
+    Logger.log('Could not save SEEN: ' + err);
+  }
 }
 
 function checkPlacements() {
@@ -98,7 +102,11 @@ function checkPlacements() {
 
   GmailApp.search(query, 0, 50).forEach(function (thread) {
     thread.getMessages().forEach(function (m) {
-      if (known[m.getId()] || m.getFrom().toLowerCase().indexOf(sender) === -1) return;
+      if (known[m.getId()]) return;
+      // The address itself must match: the display name ("placement.summers@imi.edu" <x@gmail.com>) proves nothing.
+      const raw = m.getFrom();
+      const parts = /^\\s*"?([^"<]*?)"?\\s*<([^>]+)>\\s*$/.exec(raw);
+      if ((parts ? parts[2] : raw).trim().toLowerCase() !== sender) return;
       // The site accepts at most 5 spreadsheets per email and a bounded size, so take the smallest first.
       const files = m.getAttachments().filter(function (a) {
         return /\\.xlsx?$/i.test(a.getName()) && a.getSize() <= MAX_ATTACHMENT_BYTES;
@@ -140,6 +148,7 @@ function checkPlacements() {
   batches.push(current);
 
   const invites = {};
+  const cancels = {};
   function markSeen(batch) {
     batch.forEach(function (e) { seen.push(e.id); });
     try {
@@ -159,7 +168,9 @@ function checkPlacements() {
     const code = res.getResponseCode();
     if (code === 200) {
       markSeen(batch);
-      (JSON.parse(res.getContentText()).invites || []).forEach(function (task) { invites[task.eventId] = task; });
+      const reply = JSON.parse(res.getContentText());
+      (reply.invites || []).forEach(function (task) { invites[task.eventId] = task; });
+      (reply.cancels || []).forEach(function (c) { cancels[c.eventId] = c; });
       return;
     }
     // Only these mean "the site read this and refused it". Anything else (401, 403, 408, 425, 429, 5xx)
@@ -185,28 +196,45 @@ function checkPlacements() {
   }
 
   const created = JSON.parse(props.getProperty('PLACEMENT_CREATED') || '{}');
+  function remember(eventId, calendarEventId) {
+    created[eventId] = calendarEventId;
+    const keys = Object.keys(created);
+    keys.slice(0, Math.max(0, keys.length - 50)).forEach(function (k) { delete created[k]; });
+    try {
+      props.setProperty('PLACEMENT_CREATED', JSON.stringify(created));
+    } catch (err) {
+      Logger.log('Could not save PLACEMENT_CREATED: ' + err);
+    }
+  }
   Object.keys(invites).forEach(function (eventId) {
     const task = invites[eventId];
     try {
       let calendarEventId = created[eventId];
       if (!calendarEventId) {
-        const event = CalendarApp.getDefaultCalendar().createEvent(task.title, new Date(task.startIso), new Date(task.endIso), {
-          location: task.location || '',
-          description: task.description,
-          guests: task.guests.join(','),
-          sendInvites: true,
-        });
-        calendarEventId = event.getId();
-        // Remembered straight away, so a later failure never creates a second event and a second round of invites.
-        created[eventId] = calendarEventId;
-        const keys = Object.keys(created);
-        keys.slice(0, Math.max(0, keys.length - 50)).forEach(function (k) { delete created[k]; });
-        try {
-          props.setProperty('PLACEMENT_CREATED', JSON.stringify(created));
-        } catch (err) {
-          Logger.log('Could not save PLACEMENT_CREATED: ' + err);
+        // A corrected PPT updates the event students already have (the site's id for it, or the one this
+        // script made for the earlier PPT but never got to confirm). Only when that event is gone is a new one made.
+        const existingId = task.updateCalendarEventId || (task.replacesEventId ? created[task.replacesEventId] : null);
+        const existing = existingId ? CalendarApp.getEventById(existingId) : null;
+        if (existing) {
+          existing.setTitle(task.title);
+          existing.setTime(new Date(task.startIso), new Date(task.endIso));
+          existing.setLocation(task.location || '');
+          existing.setDescription(task.description);
+          task.guests.forEach(function (g) { existing.addGuest(g); });
+          calendarEventId = existing.getId();
+          remember(eventId, calendarEventId);
+        } else {
+          const event = CalendarApp.getDefaultCalendar().createEvent(task.title, new Date(task.startIso), new Date(task.endIso), {
+            location: task.location || '',
+            description: task.description,
+            guests: task.guests.join(','),
+            sendInvites: true,
+          });
+          calendarEventId = event.getId();
+          // Remembered straight away, so a later failure never creates a second event and a second round of invites.
+          remember(eventId, calendarEventId);
+          event.setGuestsCanSeeOtherGuests(false);
         }
-        event.setGuestsCanSeeOtherGuests(false);
       }
       const confirm = UrlFetchApp.fetch(INVITES_ENDPOINT, {
         method: 'post',
@@ -219,6 +247,25 @@ function checkPlacements() {
     } catch (err) {
       // The site offers unconfirmed invites again after 2 hours.
       Logger.log('Invite for ' + task.title + ' failed: ' + err);
+    }
+  });
+  // Withdrawn PPTs: delete their Calendar events (guests get the cancellation), then tell the site.
+  Object.keys(cancels).forEach(function (eventId) {
+    const c = cancels[eventId];
+    try {
+      const event = CalendarApp.getEventById(c.calendarEventId);
+      if (event) event.deleteEvent(); // already gone counts as done
+      const confirm = UrlFetchApp.fetch(INVITES_ENDPOINT, {
+        method: 'post',
+        contentType: 'application/json',
+        headers: { Authorization: 'Bearer ' + INBOX_KEY },
+        payload: JSON.stringify({ eventId: c.eventId, cancelled: true }),
+        muteHttpExceptions: true,
+      });
+      if (confirm.getResponseCode() !== 200) Logger.log('Cancel confirm for ' + c.eventId + ' got ' + confirm.getResponseCode());
+    } catch (err) {
+      // The site offers the cancellation again after 2 hours.
+      Logger.log('Cancelling ' + c.eventId + ' failed: ' + err);
     }
   });
   if (failure) throw failure;

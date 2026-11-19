@@ -19,6 +19,13 @@ export function startInstant(date: string, time: string): Date {
   return new Date(`${date}T${time}:00${OFFSET}`);
 }
 
+/** A PPT with no usable end time (missing, or not after the start) is assumed to run 90 minutes. */
+export function inviteEnd(date: string, time: string, endTime: string | null): Date {
+  const start = startInstant(date, time);
+  const end = endTime ? startInstant(date, endTime) : null;
+  return end && end.getTime() > start.getTime() ? end : new Date(start.getTime() + 90 * 60_000);
+}
+
 export type ReminderKind = 'eve' | 'hour';
 
 export function remindersDue(

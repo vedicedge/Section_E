@@ -336,4 +336,11 @@ export const MIGRATIONS: string[] = [
     PRIMARY KEY (event_id, roll_no)
   );
   `,
+
+  // 13 — withdrawing an approved PPT: the calendar event it created is cancelled by the admin's script.
+  `
+  ALTER TABLE placement_events ADD COLUMN withdrawn_at TIMESTAMPTZ;
+  ALTER TABLE placement_events ADD COLUMN cancel_claimed_at TIMESTAMPTZ;
+  ALTER TABLE placement_events ADD COLUMN cancel_sent_at TIMESTAMPTZ;
+  `,
 ];

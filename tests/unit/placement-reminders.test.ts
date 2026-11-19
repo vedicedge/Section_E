@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { remindersDue } from '@/lib/placements/reminders';
+import { inviteEnd, remindersDue } from '@/lib/placements/reminders';
 
 // 20 Nov 2026, 19:00 IST. IST is UTC+05:30, so 19:00 IST is 13:30 UTC.
 const ppt = { date: '2026-11-20', time: '19:00', remindedEveAt: null, remindedHourAt: null };
@@ -47,5 +47,18 @@ describe('remindersDue windows', () => {
     expect(remindersDue(morning, ist('2026-11-20T08:45:00'))).toEqual(['hour']);
     // The evening before still works for a morning PPT.
     expect(remindersDue(morning, ist('2026-11-19T20:00:00'))).toEqual(['eve']);
+  });
+});
+
+describe('inviteEnd', () => {
+  it('uses the given end time when it is after the start', () => {
+    expect(inviteEnd('2026-11-20', '19:00', '20:30').toISOString()).toBe(ist('2026-11-20T20:30:00').toISOString());
+  });
+  it('assumes 90 minutes when there is no end time', () => {
+    expect(inviteEnd('2026-11-20', '19:00', null).toISOString()).toBe(ist('2026-11-20T20:30:00').toISOString());
+  });
+  it('falls back to 90 minutes when the end is not after the start', () => {
+    expect(inviteEnd('2026-11-20', '19:00', '18:00').toISOString()).toBe(ist('2026-11-20T20:30:00').toISOString());
+    expect(inviteEnd('2026-11-20', '19:00', '19:00').toISOString()).toBe(ist('2026-11-20T20:30:00').toISOString());
   });
 });
