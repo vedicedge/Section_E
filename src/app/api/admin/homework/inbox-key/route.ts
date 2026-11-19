@@ -23,10 +23,18 @@ export const POST = route(async (req) => {
   await requireAdmin();
   const { sectionList, facultyDomain } = await readJson(req, body);
   const key = await rotateInboxKey();
-  const endpoint = `${siteOrigin(req)}/api/homework/inbox`;
+  const origin = siteOrigin(req);
+  const endpoint = `${origin}/api/homework/inbox`;
   return ok({
     endpoint,
-    script: inboxScript({ endpoint, inboxKey: key, sectionList: sectionList.toLowerCase(), facultyDomain }),
+    script: inboxScript({
+      endpoint,
+      inboxKey: key,
+      sectionList: sectionList.toLowerCase(),
+      facultyDomain,
+      placementsEndpoint: `${origin}/api/placements/inbox`,
+      invitesEndpoint: `${origin}/api/placements/invites`,
+    }),
     status: await inboxStatus(),
   });
 });
