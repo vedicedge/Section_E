@@ -923,4 +923,93 @@ ${istDay(5)}, MM II, End-term exam`);
     expect(next[0]!.guests).toEqual(['p902@imi.edu', 'p903@imi.edu']);
     await admin.close();
   });
+  test('a listed student sees the PPT notice, a Coming up entry and calendar alarms; others see nothing', async ({ browser, request }) => {
+    const admin = await browser.newContext({ storageState: adminState });
+    const origin = { Origin: 'http://localhost:3200' };
+    const issued = await admin.request.post('/api/admin/homework/inbox-key', { data: { sectionList: 'pgdm2026sec-e@imi.edu', facultyDomain: 'imi.edu' }, headers: origin });
+    const key = /const INBOX_KEY = "([^"]+)"/.exec((await issued.json()).script)?.[1];
+    expect(key).toBeTruthy();
+
+    const stamp = Date.now().toString(36).replace(/\d/g, (c) => 'abcdefghij'[Number(c)]!);
+    const company = `Notice Works ${stamp}`;
+    const title = `${company} PPT`;
+    // Today in India, at a time that gets earlier with every run, so this run's PPT is always the student's next one.
+    const ist = new Date(Date.now() + 330 * 60_000);
+    const today = ist.toISOString().slice(0, 10);
+    const minute = 1439 - (ist.getUTCHours() * 60 + ist.getUTCMinutes());
+    const hhmm = `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
+    const [y, m, d] = today.split('-').map(Number);
+    const dateText = `${d}${d! % 10 === 1 && d !== 11 ? 'st' : d! % 10 === 2 && d !== 12 ? 'nd' : d! % 10 === 3 && d !== 13 ? 'rd' : 'th'} ${['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][m! - 1]} ${y}`;
+
+    const ExcelJS = (await import('exceljs')).default;
+    const mail = async (id: string, rolls: string[]) => {
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('Attendees');
+      ws.addRow(['Roll No', 'Name']);
+      rolls.forEach((r, i) => ws.addRow([r, `Student ${i}`]));
+      return {
+        id,
+        threadUrl: null,
+        subject: `Pre-Placement Talk || ${company}`,
+        receivedAt: '2026-11-18T05:39:42Z',
+        body: [`${company} will be conducting its Pre-Placement Talk.`, `- Date: ${dateText}`, '- Time: 7:00 PM', '- Venue: Auditorium'].join('\n'),
+        attachments: [{ name: 'attendees.xlsx', dataBase64: Buffer.from(await wb.xlsx.writeBuffer()).toString('base64') }],
+      };
+    };
+    const checkIn = async (emails: unknown[]) => {
+      const res = await request.post('/api/placements/inbox', { data: { emails }, headers: { Authorization: `Bearer ${key}` } });
+      expect(res.status()).toBe(200);
+    };
+    const page = await admin.newPage();
+    const approvePending = async () => {
+      await page.goto('/admin/placements');
+      const pending = page.locator('[data-testid=placement-card][data-status=pending]', { hasText: title });
+      await pending.getByLabel('Starts').fill(hhmm);
+      await pending.getByRole('button', { name: 'Approve' }).click();
+      await expect(page.locator('[data-testid=placement-card][data-status=approved]', { hasText: title })).toHaveCount(1);
+    };
+
+    // The first list leaves 26PGDM902 out.
+    await checkIn([await mail(`ppt-e2e-notice-${stamp}`, ['26PGDM901'])]);
+    await approvePending();
+
+    const student = await browser.newPage();
+    // A poster from an earlier test pops up once per visit and covers the page.
+    await student.goto('/register');
+    await student.getByRole('dialog').getByRole('button', { name: 'Close' }).click({ timeout: 3000 }).catch(() => undefined);
+    await signIn(student, '26PGDM902', '2468');
+    await student.goto('/');
+    await student.getByRole('dialog').getByRole('button', { name: 'Close' }).click({ timeout: 3000 }).catch(() => undefined);
+    await expect(student.getByTestId('coming-up')).toBeVisible();
+    await expect(student.getByText(title)).toHaveCount(0);
+    const link = await student.request.post('/api/calendar/link', { data: {}, headers: origin });
+    const url = (await link.json()).links.url as string;
+    expect(await (await request.get(url)).text()).not.toContain(title);
+
+    // A corrected list adds them.
+    await checkIn([await mail(`ppt-e2e-notice2-${stamp}`, ['26PGDM901', '26PGDM902'])]);
+    await approvePending();
+    await student.goto('/');
+    const notice = student.getByTestId('ppt-notice');
+    await expect(notice).toContainText(`You're on the attendee list for ${title} · `);
+    await expect(notice).toContainText('Auditorium');
+    await expect(student.getByTestId('coming-up')).toContainText(title);
+    await expect(student.getByTestId('coming-up')).toContainText('PPT');
+
+    const ics = await (await request.get(url)).text();
+    expect(ics).toContain(`SUMMARY:${title}`);
+    expect(ics).toContain('LOCATION:Auditorium');
+    expect(ics).toContain('TRIGGER:-P1D');
+    expect(ics).toContain('TRIGGER:-PT1H');
+    expect(ics).toContain('ACTION:DISPLAY');
+
+    // Signed out, nobody sees it.
+    const visitor = await browser.newPage();
+    await visitor.goto('/');
+    await expect(visitor.getByText(title)).toHaveCount(0);
+    await expect(visitor.getByTestId('ppt-notice')).toHaveCount(0);
+    await visitor.close();
+    await student.close();
+    await admin.close();
+  });
 });

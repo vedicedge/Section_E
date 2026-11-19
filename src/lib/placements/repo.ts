@@ -216,9 +216,11 @@ export async function dismissPlacement(id: string): Promise<void> {
   if (!res.length) throw new HttpError(404, 'That PPT no longer exists.', 'not_found');
 }
 
+export type PlacementLike = { id: string; title: string; date: string; time: string; venue: string | null; notes: string; endTime?: string | null };
+
 /** Approved PPTs from today on that this student is listed for. */
-export async function placementsFor(rollNo: string, today: string) {
-  return query<{ id: string; company: string; title: string; date: string; time: string; endTime: string | null; venue: string | null; notes: string }>(
+export async function placementsFor(rollNo: string, today: string): Promise<PlacementLike[]> {
+  return query<PlacementLike & { company: string }>(
     `SELECT e.id, e.company, e.title, e.on_date::text AS date, e.at_time AS time, e.end_time AS "endTime", e.venue, e.notes
        FROM placement_events e JOIN placement_attendees a ON a.event_id = e.id
       WHERE e.status = 'approved' AND a.roll_no = $1 AND e.on_date >= $2::date

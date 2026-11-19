@@ -8,6 +8,7 @@ import { activePlanSummaries, seatsForStudent, type MySeat } from '../seating/re
 import { getTimetable } from '../timetable/service';
 import type { Session } from '../timetable/parse';
 import { APP_TZ, addDays, todayISO } from '../time';
+import { placementsFor } from '../placements/repo';
 import { buildCalendar, type CalendarEvent } from './ics';
 
 /**
@@ -19,6 +20,7 @@ import { buildCalendar, type CalendarEvent } from './ics';
  */
 
 const DEFAULT_LENGTH_MIN = 75;
+const PPT_LENGTH_MIN = 90;
 
 function tokenFor(rollNo: string, version: number): string {
   return hmac(env.sessionSecret, `calendar:${rollNo}:${version}`).toString('base64url').slice(0, 32);
@@ -57,15 +59,31 @@ function seatText(seat: NonNullable<MySeat['seat']>): string {
   return `${row}, Seat ${seat.seatNumber}`;
 }
 
-function endOf(start: string, end: string | null): string {
+function endOf(start: string, end: string | null, length = DEFAULT_LENGTH_MIN): string {
   if (end && end > start) return end;
   const [h, m] = start.split(':').map(Number);
-  const total = Math.min(h! * 60 + m! + DEFAULT_LENGTH_MIN, 23 * 60 + 59);
+  const total = Math.min(h! * 60 + m! + length, 23 * 60 + 59);
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 }
 
 /** The student's classes as calendar events: two weeks back, about four months ahead. */
 export async function calendarEvents(rollNo: string, siteUrl: string, today = todayISO()): Promise<CalendarEvent[]> {
+  const [classes, ppts] = await Promise.all([classEvents(rollNo, siteUrl, today), placementsFor(rollNo, today).catch(() => [])]);
+  const talks: CalendarEvent[] = ppts.map((p) => ({
+    uid: `ppt-${p.id}@section-e`,
+    date: p.date,
+    start: p.time,
+    end: endOf(p.time, p.endTime ?? null, PPT_LENGTH_MIN),
+    summary: p.title,
+    location: p.venue,
+    description: [p.notes, 'Pre-Placement Talk: you are on the attendee list.', `Home: ${siteUrl}`].filter(Boolean).join('\n'),
+    cancelled: false,
+    alarms: ['-P1D', '-PT1H'],
+  }));
+  return [...classes, ...talks];
+}
+
+async function classEvents(rollNo: string, siteUrl: string, today: string): Promise<CalendarEvent[]> {
   const state = await getTimetable().catch(() => null);
   if (!state || (state.status !== 'ok' && state.status !== 'stale') || !state.data.detection.ok) return [];
   const [plans, seats] = await Promise.all([activePlanSummaries(), seatsForStudent(rollNo)]);

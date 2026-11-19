@@ -32,4 +32,19 @@ describe('calendar feed', () => {
     expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(2);
     expect(ics.endsWith('END:VCALENDAR\r\n')).toBe(true);
   });
+
+  it('adds display alarms to an event that asks for them', () => {
+    const ics = buildCalendar({
+      name: 'Section E classes',
+      tz: 'Asia/Kolkata',
+      now: new Date('2026-11-02T00:00:00Z'),
+      events: [
+        { uid: 'p@section-e', date: '2026-11-20', start: '19:00', end: '20:30', summary: 'Godrej PPT', location: 'Auditorium', description: null, cancelled: false, alarms: ['-P1D', '-PT1H'] },
+        { uid: 'q@section-e', date: '2026-11-21', start: '09:00', end: '10:30', summary: 'OM', location: null, description: null, cancelled: false },
+      ],
+    });
+    expect(ics.match(/BEGIN:VALARM/g)).toHaveLength(2);
+    expect(ics).toContain('BEGIN:VALARM\r\nACTION:DISPLAY\r\nDESCRIPTION:Godrej PPT\r\nTRIGGER:-P1D\r\nEND:VALARM');
+    expect(ics).toContain('TRIGGER:-PT1H');
+  });
 });

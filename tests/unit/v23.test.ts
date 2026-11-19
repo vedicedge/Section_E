@@ -27,6 +27,13 @@ describe('coming up', () => {
     expect(items[1]!.label).toBe('Exam');
   });
 
+  it('lists a placement talk the student is on', () => {
+    const ppt = { id: 'p1', title: 'Godrej Properties PPT', date: '2026-11-20', time: '19:00', venue: 'Auditorium', notes: '' };
+    const items = comingUp({ dates: [], homework: [], quizzes: [] }, { today, days: 14 }, [ppt, { ...ppt, id: 'far', date: '2026-12-30' }]);
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ key: 'ppt-p1', kind: 'placement', label: 'PPT', title: 'Godrej Properties PPT', time: '19:00', date: '2026-11-20' });
+  });
+
   it('limits the list', () => {
     const dates = Array.from({ length: 12 }, (_, i) => date({ id: String(i), onDate: '2026-11-16' }));
     expect(comingUp({ dates, homework: [], quizzes: [] }, { today, limit: 8 })).toHaveLength(8);
