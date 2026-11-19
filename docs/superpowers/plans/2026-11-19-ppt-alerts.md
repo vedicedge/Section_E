@@ -63,7 +63,7 @@
 
 - [ ] **Step 1: Write the failing tests** with the Godrej email verbatim (subject `Pre-Placement Talk || Finals 2025-27 || SIP 2026-28 || Godrej Properties`, body as received on 18 Nov 2026) expecting `{ company: 'Godrej Properties', title: 'Godrej Properties PPT', date: '2026-11-20', time: '19:00', venue: 'Auditorium' }` and notes including `'Business formals'` and `'Attendance is mandatory for everyone on the attendee list'`. More cases: `"Date: Nov 20"` with `receivedAt` in Nov 2026 → `2026-11-20`; `"Time: 19:00"` → `19:00`; `"Time: 10.30 AM"` → `10:30`; no venue → `null`; no date → `null` (never guessed). `attendeeRolls` on a grid with header `Sr No. | Full Name | Roll Number` and rows `24PGDM144`, `26PGDM254`, ` 26pgdm255 ` → `['24PGDM144','26PGDM254','26PGDM255']`.
 - [ ] **Step 2: Run** `npx vitest run tests/unit/placement-parse.test.ts` → FAIL.
-- [ ] **Step 3: Implement.** Company: last `||`-separated part of the subject, else the bold/"will be conducting" phrase, else `null`. Date: reuse `findDate` from `src/lib/homework/messages.ts` if it fits the cases, otherwise a local reader for `20th November 2026` / `Nov 20`; year from `receivedAt` when missing. Notes: fixed phrases detected by keyword ("formal", "mandatory").
+- [ ] **Step 3: Implement.** Company: last `||`-separated part of the subject, else the bold/"will be conducting" phrase, else `null`. Date: reuse `findDate(text, receivedOn)` from `src/lib/homework/email.ts` if it fits the cases, otherwise a local reader for `20th November 2026` / `Nov 20`; year from `receivedAt` when missing. Notes: fixed phrases detected by keyword ("formal", "mandatory").
 - [ ] **Step 4: Run** the tests → PASS.
 - [ ] **Step 5: Commit** `feat(placements): read PPT details and attendee rolls`.
 
@@ -111,7 +111,7 @@
 - Modify: `src/lib/coming-up.ts` (kind `'placement'`, label `'PPT'`)
 - Modify: `src/app/ComingUp.tsx` (notice at the top for a listed student's next PPT)
 - Modify: `src/lib/calendar/repo.ts`, `src/lib/calendar/ics.ts` (placement events with `VALARM` at -P1D and -PT1H)
-- Test: `tests/unit/calendar.test.ts`, `tests/unit/coming-up` cases (existing file that covers `comingUp`, or a new `tests/unit/coming-up-placements.test.ts`), e2e
+- Test: `tests/unit/calendar.test.ts`, `tests/unit/v23.test.ts` (where `comingUp` is already tested), e2e
 
 **Interfaces:**
 - Consumes: `placementsFor(rollNo, today): Promise<{ id; title; date; time; venue; notes }[]>` (Task 3).
