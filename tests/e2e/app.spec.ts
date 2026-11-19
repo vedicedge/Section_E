@@ -667,7 +667,7 @@ test.describe.serial('Section E', () => {
     expect(sm.seats.find((s: { rollNo: string }) => s.rollNo === '26PGDM902')).toMatchObject({ row: 'Row 2', seat: 2 });
     for (const s of sm.seats) expect(Object.keys(s).sort()).toEqual(['rollNo', 'row', 'seat', 'seatsInRow']);
     // Roll numbers appear nowhere else, and names appear nowhere at all.
-    expect(JSON.stringify({ ...feed, seating: [] })).not.toMatch(/\d{2}PGDM\d{2,4}/i);
+    expect(JSON.stringify({ ...feed, seating: [], placements: [] })).not.toMatch(/\d{2}PGDM\d{2,4}/i);
     expect(feedText).not.toContain('Test Student');
     const oldKey = await page.request.get('/api/echo/feed', { headers: { Authorization: 'Bearer echo_wrong' } });
     expect(oldKey.status()).toBe(401);
@@ -1002,6 +1002,20 @@ ${istDay(5)}, MM II, End-term exam`);
     expect(ics).toContain('TRIGGER:-P1D');
     expect(ics).toContain('TRIGGER:-PT1H');
     expect(ics).toContain('ACTION:DISPLAY');
+
+    // Echo's feed carries the approved PPT once (the replaced list is gone), with roll numbers only.
+    const echoKey = (await (await admin.request.post('/api/admin/echo-key', { headers: origin, data: {} })).json()).key as string;
+    const feedRes = await request.get('/api/echo/feed', { headers: { Authorization: `Bearer ${echoKey}` } });
+    expect(feedRes.status()).toBe(200);
+    const feedText = await feedRes.text();
+    const talks = (JSON.parse(feedText).placements ?? []) as { title: string; date: string; time: string; venue: string | null; notes: string; rolls: string[] }[];
+    const talk = talks.filter((t) => t.title === title);
+    expect(talk).toHaveLength(1);
+    expect(talk[0]).toMatchObject({ date: today, venue: 'Auditorium' });
+    expect(talk[0]!.rolls).toEqual(['26PGDM901', '26PGDM902']);
+    for (const t of talks) for (const r of t.rolls) expect(r).toMatch(/^\d{2}PGDM\d{3}R?$/);
+    expect(Object.keys(talk[0]!).sort()).toEqual(['date', 'notes', 'rolls', 'time', 'title', 'venue']);
+    expect(JSON.stringify(talks)).not.toMatch(/Student \d|Test Student|@imi\.edu/);
 
     // Signed out, nobody sees it.
     const visitor = await browser.newPage();
