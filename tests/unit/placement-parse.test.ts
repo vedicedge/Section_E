@@ -68,6 +68,11 @@ describe('parsePlacementEmail', () => {
     expect(parse('Time: 12:00 PM').time).toBe('12:00');
   });
 
+  it('uses the Asia/Kolkata calendar day for year inference', () => {
+    const r = parsePlacementEmail({ subject: 'PPT', body: 'Date: Jan 5', receivedAt: '2026-12-31T20:00:00Z' });
+    expect(r.date).toBe('2027-01-05');
+  });
+
   it('returns null rather than guessing', () => {
     const r = parse('Dear students, a talk is happening soon.');
     expect(r.venue).toBeNull();
@@ -106,5 +111,16 @@ describe('attendeeRolls', () => {
       ['2', 'Srijita Goswami', '24PGDM046R'],
     ]);
     expect(attendeeRolls([g])).toEqual(['24PGDM046R']);
+  });
+
+  it('finds rolls embedded in annotated cells and ignores non-PGDM codes', () => {
+    const g = grid([
+      ['1', 'A', '24PGDM144 (Ravi)'],
+      ['2', 'B', 'Roll: 26pgdm254r'],
+      ['3', 'C', '24ABC12'],
+      ['4', 'D', '99X1'],
+      ['5', 'E', '24MBA5Z'],
+    ]);
+    expect(attendeeRolls([g])).toEqual(['24PGDM144', '26PGDM254R']);
   });
 });

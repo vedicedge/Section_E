@@ -53,12 +53,17 @@ function readCompany(subject: string, text: string): string | null {
   return m?.[1]?.trim() || null;
 }
 
+/** The calendar date (YYYY-MM-DD) the email arrived, in the college time zone. */
+function receivedOnIst(receivedAt: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(receivedAt));
+}
+
 export function parsePlacementEmail(input: { subject: string; body: string; receivedAt: string }): PlacementDetails {
   const text = stripMarkup(input.body);
   const company = readCompany(input.subject, text);
 
   const dateText = field(text, 'Date');
-  const date = dateText ? findDate(dateText, input.receivedAt.slice(0, 10)) : null;
+  const date = dateText ? findDate(dateText, receivedOnIst(input.receivedAt)) : null;
   const time = readTime(field(text, 'Time'));
   const venue = field(text, 'Venue');
 
@@ -70,7 +75,7 @@ export function parsePlacementEmail(input: { subject: string; body: string; rece
   return { company, title, date, time, venue, notes };
 }
 
-const ROLL = /^\d{2}[A-Z]+\d+[A-Z]?$/;
+const ROLL = /\b(\d{2}PGDM\d{3}R?)\b/gi;
 
 /** Roll numbers (like 24PGDM144, 24PGDM046R) from every sheet: unique, upper-cased, in sheet order. */
 export function attendeeRolls(grids: Grid[]): string[] {
@@ -78,8 +83,8 @@ export function attendeeRolls(grids: Grid[]): string[] {
   for (const grid of grids) {
     for (const row of grid.cells) {
       for (const c of row) {
-        const roll = c?.text.trim().toUpperCase();
-        if (roll && ROLL.test(roll)) seen.add(roll);
+        const text = typeof c?.text === 'string' ? c.text : '';
+        for (const m of text.matchAll(ROLL)) seen.add(m[1]!.toUpperCase());
       }
     }
   }
