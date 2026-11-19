@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Grid, GridCell } from '../../src/lib/grid';
-import { attendeeRolls, parsePlacementEmail } from '../../src/lib/placements/parse';
+import { attendeeRolls, parsePlacementEmail, rollsInText } from '../../src/lib/placements/parse';
 
 const GODREJ_SUBJECT = 'Pre-Placement Talk || Finals 2025-27 || SIP 2026-28 || Godrej Properties';
 const GODREJ_BODY = `Dear Students,
@@ -66,6 +66,29 @@ describe('parsePlacementEmail', () => {
     expect(parse('Time: 10.30 AM').time).toBe('10:30');
     expect(parse('Time: 12:15 AM').time).toBe('00:15');
     expect(parse('Time: 12:00 PM').time).toBe('12:00');
+    expect(parse('Time: 9 AM').time).toBe('09:00');
+    expect(parse('Time: 7 PM').time).toBe('19:00');
+  });
+
+  it('applies the meridiem written after a range to its start too', () => {
+    expect(parse('Time: 7:00 - 8:30 PM').time).toBe('19:00');
+    expect(parse('Time: 6.30 to 8 pm').time).toBe('18:30');
+    expect(parse('Time: 10:30 AM - 12:00 PM').time).toBe('10:30');
+    expect(parse('Time: 11:00 - 1:00 PM').time).toBe('11:00');
+    expect(parse('Time: 7:00 PM - 8:30 PM').time).toBe('19:00');
+  });
+
+  it('gives null for a bare 12-hour time instead of guessing AM', () => {
+    expect(parse('Time: 3:00').time).toBeNull();
+    expect(parse('Time: 7:30').time).toBeNull();
+    expect(parse('Time: 12:00').time).toBeNull();
+    expect(parse('Time: 7').time).toBeNull();
+  });
+
+  it('accepts a bare time only when it is clearly 24-hour', () => {
+    expect(parse('Time: 15:30').time).toBe('15:30');
+    expect(parse('Time: 09:00').time).toBe('09:00');
+    expect(parse('Time: 19:00 hrs').time).toBe('19:00');
   });
 
   it('uses the Asia/Kolkata calendar day for year inference', () => {
@@ -122,5 +145,12 @@ describe('attendeeRolls', () => {
       ['5', 'E', '24MBA5Z'],
     ]);
     expect(attendeeRolls([g])).toEqual(['24PGDM144', '26PGDM254R']);
+  });
+});
+
+describe('rollsInText', () => {
+  it('finds roll numbers in pasted lines and commas, unique and upper-cased', () => {
+    expect(rollsInText('26pgdm901, 26PGDM902\n26PGDM901 Asha 24PGDM046R\nnot a roll 12345')).toEqual(['26PGDM901', '26PGDM902', '24PGDM046R']);
+    expect(rollsInText('nothing here')).toEqual([]);
   });
 });

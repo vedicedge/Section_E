@@ -27,22 +27,41 @@ function field(text: string, label: string): string | null {
   return m?.[1]?.trim() || null;
 }
 
+function to24(h: number, meridiem: string): number {
+  return (h % 12) + (meridiem.toLowerCase() === 'p' ? 12 : 0);
+}
+
+/**
+ * The start time in a `Time:` field, as HH:MM (24-hour). A meridiem written only after the end of a
+ * range ("7:00 - 8:30 PM") also applies to the start. A bare 12-hour looking time ("3:00") is
+ * ambiguous, so it is null unless it is clearly 24-hour (hour 13 or more, or a leading zero).
+ */
 function readTime(raw: string | null): string | null {
   if (!raw) return null;
-  const m = /\b(\d{1,2})(?:\s*[:.]\s*(\d{2}))?\s*([ap])\.?\s*m\b\.?|\b(\d{1,2})\s*[:.]\s*(\d{2})\b/i.exec(raw);
+  const m = /(?<!\d)(\d{1,2})(?:\s*[:.]\s*(\d{2}))?(?!\d)\s*(?:([ap])\.?\s*m(?![a-z])\.?)?/i.exec(raw);
   if (!m) return null;
-  let h: number;
-  let min: number;
+  const hour = Number(m[1]);
+  const min = Number(m[2] ?? 0);
+  if (min > 59) return null;
+  let h: number | null = null;
   if (m[3]) {
-    h = Number(m[1]);
-    min = Number(m[2] ?? 0);
-    if (h < 1 || h > 12) return null;
-    h = (h % 12) + (m[3].toLowerCase() === 'p' ? 12 : 0);
+    if (hour < 1 || hour > 12) return null;
+    h = to24(hour, m[3]);
   } else {
-    h = Number(m[4]);
-    min = Number(m[5]);
+    const end = /^\s*(?:-|–|—|to|till|until)\s*(\d{1,2})(?:\s*[:.]\s*(\d{2}))?\s*([ap])\.?\s*m(?![a-z])/i.exec(raw.slice(m.index + m[0].length));
+    const endHour = end ? Number(end[1]) : 0;
+    if (end && endHour >= 1 && endHour <= 12 && hour >= 1 && hour <= 12) {
+      const endMinutes = to24(endHour, end[3]!) * 60 + Number(end[2] ?? 0);
+      const same = to24(hour, end[3]!);
+      const other = to24(hour, end[3]!.toLowerCase() === 'p' ? 'a' : 'p');
+      // The meridiem that puts the start before the end wins; "11:00 - 1:00 PM" starts at 11 am.
+      if (same * 60 + min < endMinutes) h = same;
+      else if (other * 60 + min < endMinutes) h = other;
+    } else if (m[2] !== undefined && (hour >= 13 || (m[1]!.length === 2 && m[1]!.startsWith('0')))) {
+      h = hour;
+    }
   }
-  if (h > 23 || min > 59) return null;
+  if (h === null || h > 23) return null;
   return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
 }
 
@@ -89,4 +108,9 @@ export function attendeeRolls(grids: Grid[]): string[] {
     }
   }
   return [...seen];
+}
+
+/** Roll numbers in pasted text (one per line, comma-separated, or copied from a sheet): unique, upper-cased. */
+export function rollsInText(text: string): string[] {
+  return [...new Set([...text.matchAll(ROLL)].map((m) => m[1]!.toUpperCase()))];
 }
