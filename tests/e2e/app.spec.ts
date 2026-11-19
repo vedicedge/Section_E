@@ -825,8 +825,11 @@ ${istDay(5)}, MM II, End-term exam`);
     // A list with nobody from Section E is set aside.
     expect(await send([mail('ppt-e2e-2', await list(['99PGDM998', '99PGDM999']))])).toMatchObject({ added: 0, skipped: 1 });
     // An attachment that is not a readable spreadsheet stays visible to the admin instead of being skipped.
-    const broken = { ...mail('ppt-e2e-3', Buffer.from('not a spreadsheet').toString('base64')), subject: 'Pre-Placement Talk || Broken Co' };
+    const broken = { ...mail('ppt-e2e-3', Buffer.from('not a spreadsheet').toString('base64')), subject: 'Pre-Placement Talk || Broken Co', attachments: [{ name: 'Attendee List.xlsx', dataBase64: Buffer.from('not a spreadsheet').toString('base64') }] };
     expect(await send([broken])).toMatchObject({ added: 1, skipped: 0 });
+    // A brochure is not an attendee list: with no spreadsheet at all the email is set aside.
+    const brochure = { ...mail('ppt-e2e-4', ''), attachments: [{ name: 'brochure.pdf', dataBase64: Buffer.from('%PDF-1.4').toString('base64') }] };
+    expect(await send([brochure])).toMatchObject({ added: 0, skipped: 1 });
     await admin.close();
   });
 });

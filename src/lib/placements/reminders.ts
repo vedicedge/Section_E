@@ -85,7 +85,7 @@ export async function sendPlacementReminders(now: Date): Promise<number> {
       } catch (err) {
         // Release the claim so the next check-in tries again.
         console.error(`Placement reminder (${kind}) for ${r.id} failed:`, err);
-        await query(`UPDATE placement_events SET ${column} = NULL WHERE id = $1`, [r.id]);
+        await query(`UPDATE placement_events SET ${column} = NULL WHERE id = $1 AND ${column} = $2`, [r.id, now.toISOString()]);
         continue;
       }
       sent++;

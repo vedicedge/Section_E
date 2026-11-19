@@ -68,6 +68,8 @@ async function rollsFromAttachments(attachments: PlacementEmail['attachments']):
   let readable = 0;
   let unreadable = false;
   for (const a of attachments) {
+    // Only spreadsheets are attendee lists; PDFs, images and signatures are ignored.
+    if (!/\.xlsx?$/i.test(a.name.trim())) continue;
     try {
       const buf = Buffer.from(a.dataBase64, 'base64');
       if (!looksLikeXlsx(buf)) throw new Error('Not an .xlsx file.');
