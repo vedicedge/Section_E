@@ -21,11 +21,27 @@ const LOOK_BACK_DAYS = 3;
 const PLACEMENTS_ENDPOINT = __PLACEMENTS_ENDPOINT__;
 const INVITES_ENDPOINT = __INVITES_ENDPOINT__;
 const PLACEMENT_FROM = __PLACEMENT_FROM__;
-const MAX_ATTACHMENT_BYTES = 2500000;
-const MAX_BATCH_BYTES = 3500000;
+// The site rejects over 3,000,000 base64 characters per file, 5 files per email and 4 MB per request.
+const MAX_ATTACHMENT_BYTES = 2200000;
+const MAX_EMAIL_BYTES = 2600000;
+const MAX_ATTACHMENTS = 5;
+const MAX_BATCH_BYTES = 3800000;
 const MAX_BATCH_EMAILS = 10;
 
 function checkInbox() {
+  // Placements run whatever happens to the homework part; a homework error is still reported.
+  try {
+    checkHomework();
+  } finally {
+    try {
+      checkPlacements();
+    } catch (err) {
+      Logger.log('Placements: ' + err);
+    }
+  }
+}
+
+function checkHomework() {
   const props = PropertiesService.getScriptProperties();
   const seen = JSON.parse(props.getProperty('SEEN') || '[]');
   const known = {};
@@ -68,12 +84,6 @@ function checkInbox() {
   emails.forEach(function (e) { seen.push(e.id); });
   props.setProperty('SEEN', JSON.stringify(seen.slice(-500)));
 
-  // Placements run last and separately: a problem there must never stop the homework part above.
-  try {
-    checkPlacements();
-  } catch (err) {
-    console.error('Placements: ' + err);
-  }
 }
 
 function checkPlacements() {
@@ -82,15 +92,22 @@ function checkPlacements() {
   const known = {};
   seen.forEach(function (id) { known[id] = true; });
   const me = Session.getActiveUser().getEmail();
-  const query = 'from:' + PLACEMENT_FROM + ' has:attachment filename:xlsx newer_than:7d';
+  const sender = PLACEMENT_FROM.toLowerCase();
+  const query = 'from:' + PLACEMENT_FROM + ' has:attachment (filename:xlsx OR filename:xls) newer_than:7d';
   const emails = [];
 
   GmailApp.search(query, 0, 50).forEach(function (thread) {
     thread.getMessages().forEach(function (m) {
-      if (known[m.getId()]) return;
+      if (known[m.getId()] || m.getFrom().toLowerCase().indexOf(sender) === -1) return;
+      // The site accepts at most 5 spreadsheets per email and a bounded size, so take the smallest first.
+      const files = m.getAttachments().filter(function (a) {
+        return /\\.xlsx?$/i.test(a.getName()) && a.getSize() <= MAX_ATTACHMENT_BYTES;
+      }).sort(function (a, b) { return a.getSize() - b.getSize(); });
       const attachments = [];
-      m.getAttachments().forEach(function (a) {
-        if (!/\.xlsx?$/i.test(a.getName()) || a.getSize() > MAX_ATTACHMENT_BYTES) return;
+      let total = 0;
+      files.forEach(function (a) {
+        if (attachments.length >= MAX_ATTACHMENTS || total + a.getSize() > MAX_EMAIL_BYTES) return;
+        total += a.getSize();
         attachments.push({ name: a.getName(), dataBase64: Utilities.base64Encode(a.getBytes()) });
       });
       if (!attachments.length) return;
@@ -105,7 +122,7 @@ function checkPlacements() {
     });
   });
 
-  // Batches of at most 10 emails and about 3.5 MB. Sent even when empty, because the site's reply
+  // Batches of at most 10 emails and about 3.8 MB. Sent even when empty, because the site's reply
   // also carries any calendar invites waiting to be created.
   const batches = [];
   let current = [];
@@ -123,7 +140,15 @@ function checkPlacements() {
   batches.push(current);
 
   const invites = {};
-  batches.forEach(function (batch) {
+  function markSeen(batch) {
+    batch.forEach(function (e) { seen.push(e.id); });
+    try {
+      props.setProperty('PLACEMENT_SEEN', JSON.stringify(seen.slice(-300)));
+    } catch (err) {
+      Logger.log('Could not save PLACEMENT_SEEN: ' + err);
+    }
+  }
+  function send(batch) {
     const res = UrlFetchApp.fetch(PLACEMENTS_ENDPOINT, {
       method: 'post',
       contentType: 'application/json',
@@ -131,35 +156,69 @@ function checkPlacements() {
       payload: JSON.stringify({ emails: batch }),
       muteHttpExceptions: true,
     });
-    if (res.getResponseCode() !== 200) throw new Error('Section E said ' + res.getResponseCode() + ': ' + res.getContentText());
-    batch.forEach(function (e) { seen.push(e.id); });
-    props.setProperty('PLACEMENT_SEEN', JSON.stringify(seen.slice(-500)));
-    (JSON.parse(res.getContentText()).invites || []).forEach(function (task) { invites[task.eventId] = task; });
-  });
+    const code = res.getResponseCode();
+    if (code === 200) {
+      markSeen(batch);
+      (JSON.parse(res.getContentText()).invites || []).forEach(function (task) { invites[task.eventId] = task; });
+      return;
+    }
+    if (code === 401 || code === 403 || code >= 500 || code < 400) {
+      throw new Error('Section E said ' + code + ': ' + res.getContentText());
+    }
+    if (batch.length > 1) {
+      // One bad email must not block the rest: try them one at a time.
+      batch.forEach(function (e) { send([e]); });
+      return;
+    }
+    Logger.log('Section E rejected ' + batch[0].id + ' (' + code + '), skipping it: ' + res.getContentText());
+    markSeen(batch);
+  }
 
+  let failure = null;
+  try {
+    batches.forEach(send);
+  } catch (err) {
+    failure = err; // Retried on the next run; invites already received are still created below.
+  }
+
+  const created = JSON.parse(props.getProperty('PLACEMENT_CREATED') || '{}');
   Object.keys(invites).forEach(function (eventId) {
     const task = invites[eventId];
     try {
-      const event = CalendarApp.getDefaultCalendar().createEvent(task.title, new Date(task.startIso), new Date(task.endIso), {
-        location: task.location || '',
-        description: task.description,
-        guests: task.guests.join(','),
-        sendInvites: true,
-      });
-      event.setGuestsCanSeeOtherGuests(false);
+      let calendarEventId = created[eventId];
+      if (!calendarEventId) {
+        const event = CalendarApp.getDefaultCalendar().createEvent(task.title, new Date(task.startIso), new Date(task.endIso), {
+          location: task.location || '',
+          description: task.description,
+          guests: task.guests.join(','),
+          sendInvites: true,
+        });
+        calendarEventId = event.getId();
+        // Remembered straight away, so a later failure never creates a second event and a second round of invites.
+        created[eventId] = calendarEventId;
+        const keys = Object.keys(created);
+        keys.slice(0, Math.max(0, keys.length - 50)).forEach(function (k) { delete created[k]; });
+        try {
+          props.setProperty('PLACEMENT_CREATED', JSON.stringify(created));
+        } catch (err) {
+          Logger.log('Could not save PLACEMENT_CREATED: ' + err);
+        }
+        event.setGuestsCanSeeOtherGuests(false);
+      }
       const confirm = UrlFetchApp.fetch(INVITES_ENDPOINT, {
         method: 'post',
         contentType: 'application/json',
         headers: { Authorization: 'Bearer ' + INBOX_KEY },
-        payload: JSON.stringify({ eventId: task.eventId, calendarEventId: event.getId() }),
+        payload: JSON.stringify({ eventId: task.eventId, calendarEventId: calendarEventId }),
         muteHttpExceptions: true,
       });
-      if (confirm.getResponseCode() !== 200) console.error('Invite confirm for ' + task.title + ' got ' + confirm.getResponseCode());
+      if (confirm.getResponseCode() !== 200) Logger.log('Invite confirm for ' + task.title + ' got ' + confirm.getResponseCode());
     } catch (err) {
       // The site offers unconfirmed invites again after 2 hours.
-      console.error('Invite for ' + task.title + ' failed: ' + err);
+      Logger.log('Invite for ' + task.title + ' failed: ' + err);
     }
   });
+  if (failure) throw failure;
 }
 
 function setUp() {

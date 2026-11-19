@@ -32,8 +32,21 @@ describe('inboxScript', () => {
   });
 });
 
-describe('generated script regex', () => {
-  it('keeps the escaped dot in the spreadsheet filter', () => {
-    expect(script).toContain('/\.xlsx?$/i');
+describe('generated script behaviour', () => {
+  it('escapes the dot in the spreadsheet filter (evaluated, not just matched as text)', () => {
+    const m = /return (\/[^\n]*?\/i)\.test\(a\.getName/.exec(script);
+    expect(m).not.toBeNull();
+    const re = new Function('return ' + m![1])() as RegExp;
+    expect(re.test('list.xlsx')).toBe(true);
+    expect(re.test('listaxlsx')).toBe(false);
+  });
+  it('stays under the site limits', () => {
+    expect(script).toContain('MAX_ATTACHMENT_BYTES = 2200000');
+    expect(script).toContain('MAX_ATTACHMENTS = 5');
+  });
+  it('checks the sender per message, dedupes invites and keeps properties small', () => {
+    for (const s of ['m.getFrom().toLowerCase().indexOf(sender)', 'PLACEMENT_CREATED', 'slice(-300)', '(filename:xlsx OR filename:xls)', 'finally']) {
+      expect(script).toContain(s);
+    }
   });
 });
