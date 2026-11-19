@@ -4,6 +4,7 @@ import { upcomingKeyDates } from '@/lib/key-dates';
 import { homeworkForStudent } from '@/lib/homework/repo';
 import { placementsFor } from '@/lib/placements/repo';
 import { pptSummary } from '@/lib/placements/format';
+import { startInstant } from '@/lib/placements/reminders';
 import { listPublishedQuizzes } from '@/lib/quizzes/repo';
 import { addDays, formatClock, formatDay, todayISO, weekdayOf } from '@/lib/time';
 import styles from '@/components/Board.module.css';
@@ -57,12 +58,15 @@ function Row({ item, today }: { item: UpcomingItem; today: string }) {
  */
 export async function ComingUp({ rollNo }: { rollNo: string | null }) {
   const today = todayISO();
-  const [dates, homework, quizzes, placements] = await Promise.all([
+  const [dates, homework, quizzes, placementsToday] = await Promise.all([
     upcomingKeyDates(today),
     rollNo ? homeworkForStudent(rollNo).catch(() => []) : Promise.resolve([]),
     rollNo ? listPublishedQuizzes().catch(() => []) : Promise.resolve([]),
     rollNo ? placementsFor(rollNo, today).catch(() => []) : Promise.resolve([]),
   ]);
+  // A PPT that already started (say, this morning) is no longer news.
+  const now = Date.now();
+  const placements = placementsToday.filter((p) => startInstant(p.date, p.time).getTime() > now);
   const items = rollNo ? comingUp({ dates, homework, quizzes }, { today, days: 14, limit: 8 }, placements) : [];
   const nextPpt = placements[0];
   const countdown = examCountdown(dates, today);
