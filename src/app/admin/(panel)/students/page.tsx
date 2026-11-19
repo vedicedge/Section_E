@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { listRoster } from '@/lib/students';
 import { Roster } from './Roster';
+import { EmailForm } from './EmailForm';
 import styles from '../../admin.module.css';
 import { requireAdminPage } from '@/lib/admin-guard';
 
@@ -22,6 +23,7 @@ export default async function AdminStudents() {
           </p>
         </div>
       </header>
+      <EmailForm />
       <Roster roster={roster} />
     </div>
   );

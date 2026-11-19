@@ -16,6 +16,7 @@ interface StudentRow {
   session_version: number;
   last_seen_at: Date | null;
   recovery_hash: string | null;
+  email: string | null;
 }
 
 export async function rosterSize(): Promise<number> {
@@ -107,6 +108,7 @@ export interface RosterEntry {
   registered: boolean;
   claimedAt: string | null;
   lastSeenAt: string | null;
+  hasEmail: boolean;
 }
 
 export async function listRoster(): Promise<RosterEntry[]> {
@@ -119,6 +121,7 @@ export async function listRoster(): Promise<RosterEntry[]> {
     registered: Boolean(r.pin_hash),
     claimedAt: r.claimed_at ? new Date(r.claimed_at).toISOString() : null,
     lastSeenAt: r.last_seen_at ? new Date(r.last_seen_at).toISOString() : null,
+    hasEmail: Boolean(r.email),
   }));
 }
 
