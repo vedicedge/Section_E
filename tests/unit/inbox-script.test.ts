@@ -49,4 +49,8 @@ describe('generated script behaviour', () => {
       expect(script).toContain(s);
     }
   });
+  it('treats only 400, 413 and 422 as poison, never 429', () => {
+    expect(script).toContain('code !== 400 && code !== 413 && code !== 422');
+    expect(script).not.toContain('code >= 500');
+  });
 });

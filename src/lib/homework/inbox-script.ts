@@ -162,7 +162,9 @@ function checkPlacements() {
       (JSON.parse(res.getContentText()).invites || []).forEach(function (task) { invites[task.eventId] = task; });
       return;
     }
-    if (code === 401 || code === 403 || code >= 500 || code < 400) {
+    // Only these mean "the site read this and refused it". Anything else (401, 403, 408, 425, 429, 5xx)
+    // is temporary or ours to fix, so stop and try again next run without marking anything.
+    if (code !== 400 && code !== 413 && code !== 422) {
       throw new Error('Section E said ' + code + ': ' + res.getContentText());
     }
     if (batch.length > 1) {
@@ -170,6 +172,7 @@ function checkPlacements() {
       batch.forEach(function (e) { send([e]); });
       return;
     }
+    if (!batch.length) throw new Error('Section E said ' + code + ': ' + res.getContentText());
     Logger.log('Section E rejected ' + batch[0].id + ' (' + code + '), skipping it: ' + res.getContentText());
     markSeen(batch);
   }
