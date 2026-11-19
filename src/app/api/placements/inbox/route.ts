@@ -51,6 +51,10 @@ export const POST = route(async (req) => {
   const { emails } = body.parse(json);
   const result = await ingestPlacementEmails(emails);
   const now = new Date();
-  await sendPlacementReminders(now);
+  try {
+    await sendPlacementReminders(now);
+  } catch (err) {
+    console.error('Placement reminders failed:', err);
+  }
   return ok({ ok: true, ...result, invites: await inviteTasks(now) });
 });

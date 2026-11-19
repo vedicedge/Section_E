@@ -28,3 +28,24 @@ describe('remindersDue', () => {
     expect(remindersDue(ppt, ist('2026-11-20T20:00:00'))).toEqual([]);
   });
 });
+
+describe('remindersDue windows', () => {
+  it('opens the evening reminder exactly at 19:00 the day before', () => {
+    expect(remindersDue(ppt, ist('2026-11-19T19:00:00'))).toEqual(['eve']);
+  });
+  it('stops the evening reminder when the hour window opens, and starts the hour one', () => {
+    expect(remindersDue(ppt, ist('2026-11-20T17:29:59'))).toEqual([]);
+    expect(remindersDue(ppt, ist('2026-11-20T17:30:00'))).toEqual(['hour']);
+  });
+  it('closes the hour reminder 30 minutes before the start', () => {
+    expect(remindersDue(ppt, ist('2026-11-20T18:29:59'))).toEqual(['hour']);
+    expect(remindersDue(ppt, ist('2026-11-20T18:30:00'))).toEqual([]);
+  });
+  it('never says "tomorrow" on the day itself', () => {
+    const morning = { ...ppt, time: '10:00' };
+    expect(remindersDue(morning, ist('2026-11-20T08:00:00'))).toEqual([]);
+    expect(remindersDue(morning, ist('2026-11-20T08:45:00'))).toEqual(['hour']);
+    // The evening before still works for a morning PPT.
+    expect(remindersDue(morning, ist('2026-11-19T20:00:00'))).toEqual(['eve']);
+  });
+});

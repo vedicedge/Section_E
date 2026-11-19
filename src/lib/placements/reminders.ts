@@ -1,7 +1,7 @@
 import 'server-only';
 import { query } from '../db';
 import { sendPush } from '../push';
-import { addDays } from '../time';
+import { addDays, todayISO } from '../time';
 
 /**
  * Reminders for approved Pre-Placement Talks: one the evening before (from 7 pm) and one about an
@@ -33,7 +33,9 @@ export function remindersDue(
   const hourCloses = start - HOUR_TO_MIN * 60_000;
   const eveOpens = startInstant(addDays(e.date, -1), EVE_FROM).getTime();
   // The evening reminder stops when the hour window opens, so a late check-in never sends both.
-  if (!e.remindedEveAt && t >= eveOpens && t < hourOpens) due.push('eve');
+  // On the day itself "tomorrow" would be wrong, and the hour reminder covers it.
+  const sameDay = todayISO(now) === e.date;
+  if (!e.remindedEveAt && !sameDay && t >= eveOpens && t < hourOpens) due.push('eve');
   if (!e.remindedHourAt && t >= hourOpens && t < hourCloses) due.push('hour');
   return due;
 }
@@ -73,12 +75,19 @@ export async function sendPlacementReminders(now: Date): Promise<number> {
       if (!claimed.length) continue;
       const rolls = (await query<{ roll_no: string }>('SELECT roll_no FROM placement_attendees WHERE event_id = $1', [r.id])).map((a) => a.roll_no);
       const when = kind === 'eve' ? `tomorrow at ${clock(r.time)}` : `today at ${clock(r.time)}`;
-      await sendPush(rolls, {
-        title: kind === 'eve' ? `Tomorrow: ${r.title}` : `Starting soon: ${r.title}`,
-        body: `${r.title} is ${when}${r.venue ? ` · ${r.venue}` : ''}.`,
-        url: '/',
-        tag: `placement-${r.id}-${kind}`,
-      }).catch(() => undefined);
+      try {
+        await sendPush(rolls, {
+          title: kind === 'eve' ? `Tomorrow: ${r.title}` : `Starting soon: ${r.title}`,
+          body: `${r.title} is ${when}${r.venue ? ` · ${r.venue}` : ''}.`,
+          url: '/',
+          tag: `placement-${r.id}-${kind}`,
+        });
+      } catch (err) {
+        // Release the claim so the next check-in tries again.
+        console.error(`Placement reminder (${kind}) for ${r.id} failed:`, err);
+        await query(`UPDATE placement_events SET ${column} = NULL WHERE id = $1`, [r.id]);
+        continue;
+      }
       sent++;
     }
   }

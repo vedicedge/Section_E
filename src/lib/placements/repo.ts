@@ -60,18 +60,25 @@ async function listedSectionEStudents(rolls: string[]): Promise<string[]> {
   return rows.map((r) => r.roll_no);
 }
 
-async function rollsFromAttachments(attachments: PlacementEmail['attachments']): Promise<string[]> {
+const UNREADABLE_NOTE = "The attendee list couldn't be read. Open the email to check it.";
+
+/** Rolls from every spreadsheet, and whether any attachment could not be read as a spreadsheet. */
+async function rollsFromAttachments(attachments: PlacementEmail['attachments']): Promise<{ rolls: string[]; readable: number; unreadable: boolean }> {
   const found = new Set<string>();
+  let readable = 0;
+  let unreadable = false;
   for (const a of attachments) {
     try {
       const buf = Buffer.from(a.dataBase64, 'base64');
-      if (!looksLikeXlsx(buf)) continue;
+      if (!looksLikeXlsx(buf)) throw new Error('Not an .xlsx file.');
       for (const r of attendeeRolls(await readWorkbook(buf))) found.add(r);
-    } catch {
-      // An unreadable spreadsheet counts as "no list", so the email is skipped.
+      readable++;
+    } catch (err) {
+      unreadable = true;
+      console.error(`Placement attachment "${a.name}" could not be read:`, err);
     }
   }
-  return [...found];
+  return { rolls: [...found], readable, unreadable };
 }
 
 /**
@@ -84,8 +91,13 @@ export async function ingestPlacementEmails(emails: PlacementEmail[]): Promise<{
   for (const email of emails) {
     if (await queryOne('SELECT 1 FROM placement_events WHERE source_email_id = $1', [email.id])) continue;
     const details = parsePlacementEmail({ subject: email.subject, body: email.body, receivedAt: email.receivedAt });
-    const rolls = await listedSectionEStudents(await rollsFromAttachments(email.attachments));
-    const status: PlacementStatus = rolls.length ? 'pending' : 'skipped';
+    const list = await rollsFromAttachments(email.attachments);
+    const rolls = await listedSectionEStudents(list.rolls);
+    // A list that was read and has nobody from Section E is set aside. One that could not be read
+    // stays visible to the admin, who can open the email.
+    const unreadable = !rolls.length && list.unreadable;
+    const status: PlacementStatus = rolls.length || unreadable ? 'pending' : 'skipped';
+    const notes = unreadable ? [...details.notes, UNREADABLE_NOTE] : details.notes;
     const id = newId();
     const inserted = await transaction(async (tx) => {
       let replacesId: string | null = null;
@@ -102,7 +114,7 @@ export async function ingestPlacementEmails(emails: PlacementEmail[]): Promise<{
         `INSERT INTO placement_events (id, company, title, on_date, at_time, venue, notes, source_email_id, thread_url, replaces_id, status)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          ON CONFLICT (source_email_id) DO NOTHING RETURNING id`,
-        [id, details.company ?? '', details.title, details.date, details.time, details.venue, details.notes.join('\n'), email.id, email.threadUrl, replacesId, status],
+        [id, details.company ?? '', details.title, details.date, details.time, details.venue, notes.join('\n'), email.id, email.threadUrl, replacesId, status],
       );
       if (!res.rows.length) return false;
       for (const roll of rolls) {

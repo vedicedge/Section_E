@@ -824,6 +824,9 @@ ${istDay(5)}, MM II, End-term exam`);
     expect(await send([mail('ppt-e2e-1', mixed)])).toMatchObject({ added: 0, skipped: 0 });
     // A list with nobody from Section E is set aside.
     expect(await send([mail('ppt-e2e-2', await list(['99PGDM998', '99PGDM999']))])).toMatchObject({ added: 0, skipped: 1 });
+    // An attachment that is not a readable spreadsheet stays visible to the admin instead of being skipped.
+    const broken = { ...mail('ppt-e2e-3', Buffer.from('not a spreadsheet').toString('base64')), subject: 'Pre-Placement Talk || Broken Co' };
+    expect(await send([broken])).toMatchObject({ added: 1, skipped: 0 });
     await admin.close();
   });
 });
