@@ -782,4 +782,48 @@ ${istDay(5)}, MM II, End-term exam`);
     await student.close();
     await admin.close();
   });
+  test('placement emails become a PPT for the listed students only', async ({ browser, request }) => {
+    const admin = await browser.newContext({ storageState: adminState });
+    const issued = await admin.request.post('/api/admin/homework/inbox-key', {
+      data: { sectionList: 'pgdm2026sec-e@imi.edu', facultyDomain: 'imi.edu' },
+      headers: { Origin: 'http://localhost:3200' },
+    });
+    expect(issued.status()).toBe(200);
+    const key = /const INBOX_KEY = "([^"]+)"/.exec((await issued.json()).script)?.[1];
+    expect(key).toBeTruthy();
+
+    const ExcelJS = (await import('exceljs')).default;
+    async function list(rolls: string[]) {
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('Attendees');
+      ws.addRow(['Roll No', 'Name']);
+      rolls.forEach((r, i) => ws.addRow([r, `Student ${i}`]));
+      return Buffer.from(await wb.xlsx.writeBuffer()).toString('base64');
+    }
+    const body = ['We are pleased to inform you that Acme Corp will be conducting its Pre-Placement Talk.', '- Date: 20th November 2026', '- Time: 7:00 PM', '- Venue: Auditorium'].join('\n');
+    const mail = (id: string, dataBase64: string) => ({
+      id,
+      threadUrl: null,
+      subject: 'Pre-Placement Talk || Acme Corp',
+      receivedAt: '2026-11-18T05:39:42Z',
+      body,
+      attachments: [{ name: 'attendees.xlsx', dataBase64 }],
+    });
+    const send = async (emails: unknown[]) => {
+      const res = await request.post('/api/placements/inbox', { data: { emails }, headers: { Authorization: `Bearer ${key}` } });
+      expect(res.status()).toBe(200);
+      return res.json();
+    };
+
+    const noKey = await request.post('/api/placements/inbox', { data: { emails: [] } });
+    expect(noKey.status()).toBe(401);
+
+    const mixed = await list(['26PGDM901', '26PGDM902', '99PGDM999']);
+    expect(await send([mail('ppt-e2e-1', mixed)])).toMatchObject({ added: 1, skipped: 0, invites: [] });
+    // The same email again changes nothing.
+    expect(await send([mail('ppt-e2e-1', mixed)])).toMatchObject({ added: 0, skipped: 0 });
+    // A list with nobody from Section E is set aside.
+    expect(await send([mail('ppt-e2e-2', await list(['99PGDM998', '99PGDM999']))])).toMatchObject({ added: 0, skipped: 1 });
+    await admin.close();
+  });
 });
