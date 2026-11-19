@@ -832,4 +832,95 @@ ${istDay(5)}, MM II, End-term exam`);
     expect(await send([brochure])).toMatchObject({ added: 0, skipped: 1 });
     await admin.close();
   });
+  test('admin reviews, approves and corrects a PPT', async ({ browser, request }) => {
+    const admin = await browser.newContext({ storageState: adminState });
+    const origin = { Origin: 'http://localhost:3200' };
+    const issued = await admin.request.post('/api/admin/homework/inbox-key', {
+      data: { sectionList: 'pgdm2026sec-e@imi.edu', facultyDomain: 'imi.edu' },
+      headers: origin,
+    });
+    const key = /const INBOX_KEY = "([^"]+)"/.exec((await issued.json()).script)?.[1];
+    expect(key).toBeTruthy();
+    // Only the first listed student has an address; 26PGDM904 never gets one.
+    expect((await admin.request.post('/api/admin/students/emails', { data: { text: '26PGDM901 p901@imi.edu' }, headers: origin })).status()).toBe(200);
+
+    // A name no earlier run has used, so this run finds only its own cards in the shared database.
+    const stamp = Date.now().toString(36).replace(/\d/g, (c) => 'abcdefghij'[Number(c)]!);
+    const company = `Godrej Properties ${stamp}`;
+    const title = `${company} PPT`;
+    const ExcelJS = (await import('exceljs')).default;
+    async function list(rolls: string[]) {
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('Attendees');
+      ws.addRow(['Roll No', 'Name']);
+      rolls.forEach((r, i) => ws.addRow([r, `Student ${i}`]));
+      return Buffer.from(await wb.xlsx.writeBuffer()).toString('base64');
+    }
+    const mail = async (id: string, rolls: string[]) => ({
+      id,
+      threadUrl: null,
+      subject: `Pre-Placement Talk || ${company}`,
+      receivedAt: '2026-11-18T05:39:42Z',
+      body: [`${company} will be conducting its Pre-Placement Talk.`, '- Date: 20th November 2026', '- Time: 7:00 PM', '- Venue: Auditorium'].join('\n'),
+      attachments: [{ name: 'attendees.xlsx', dataBase64: await list(rolls) }],
+    });
+    const checkIn = async (emails: unknown[] = []) => {
+      const res = await request.post('/api/placements/inbox', { data: { emails }, headers: { Authorization: `Bearer ${key}` } });
+      expect(res.status()).toBe(200);
+      return (await res.json()) as { added: number; invites: { eventId: string; title: string; guests: string[] }[] };
+    };
+    const mine = <T extends { title: string }>(r: { invites: T[] }) => r.invites.filter((i) => i.title === title);
+    const card = (page: import('@playwright/test').Page, status: string) =>
+      page.locator(`[data-testid=placement-card][data-status=${status}]`, { hasText: title });
+
+    expect(await checkIn([await mail(`ppt-e2e-gp-${stamp}`, ['26PGDM901', '26PGDM904'])])).toMatchObject({ added: 1 });
+
+    const page = await admin.newPage();
+    await page.goto('/admin/placements');
+    const pending = card(page, 'pending');
+    await expect(pending).toContainText(company);
+    await expect(pending).toContainText('Fri 20 Nov');
+    await expect(pending).toContainText('7:00 PM');
+    await expect(pending).toContainText('Auditorium');
+    await expect(pending).toContainText('2 students');
+    await expect(pending).toContainText('1 without an email address');
+
+    // The date and time are needed before a PPT can be approved.
+    await pending.getByLabel('Starts').fill('');
+    await pending.getByRole('button', { name: 'Approve' }).click();
+    await expect(pending).toContainText('Add the date and time before approving.');
+    await pending.getByLabel('Starts').fill('19:00');
+    await pending.getByRole('button', { name: 'Approve' }).click();
+    const approved = card(page, 'approved');
+    await expect(approved).toContainText('Approved');
+    await expect(approved).toContainText('Invite: waiting for the inbox script');
+    await expect(card(page, 'pending')).toHaveCount(0);
+
+    // The calendar invite is handed to the inbox script once, and not again after it confirms.
+    const first = await checkIn();
+    expect(mine(first)).toHaveLength(1);
+    expect(mine(first)[0]!.guests).toEqual(['p901@imi.edu']);
+    expect(mine(await checkIn())).toHaveLength(0);
+    const confirm = await request.post('/api/placements/invites', {
+      data: { eventId: mine(first)[0]!.eventId, calendarEventId: 'test-cal-1' },
+      headers: { Authorization: `Bearer ${key}` },
+    });
+    expect(confirm.status()).toBe(200);
+    expect(mine(await checkIn())).toHaveLength(0);
+
+    // A corrected list for the same company and day arrives as an update to that PPT.
+    await admin.request.post('/api/admin/students/emails', { data: { text: '26PGDM902 p902@imi.edu\n26PGDM903 p903@imi.edu' }, headers: origin });
+    expect(await checkIn([await mail(`ppt-e2e-gp2-${stamp}`, ['26PGDM901', '26PGDM902', '26PGDM903'])])).toMatchObject({ added: 1 });
+    await page.goto('/admin/placements');
+    const update = card(page, 'pending');
+    await expect(update).toContainText('Updates an earlier PPT');
+    await update.getByRole('button', { name: 'Approve' }).click();
+    await expect(card(page, 'approved')).toHaveCount(1);
+    await expect(card(page, 'dismissed')).toHaveCount(1);
+    // Only students who were not on the old list are invited.
+    const next = mine(await checkIn());
+    expect(next).toHaveLength(1);
+    expect(next[0]!.guests).toEqual(['p902@imi.edu', 'p903@imi.edu']);
+    await admin.close();
+  });
 });
