@@ -57,14 +57,22 @@ export async function readJson<T>(req: Request, schema: ZodType<T>): Promise<T> 
  * (so links never point at a one-off preview address), else the host the request came to.
  */
 export function siteOrigin(req: Request): string {
+  return publicOrigin(req.headers) ?? new URL(req.url).origin;
+}
+
+/**
+ * The same address for server components, which have headers but no Request. Configured values
+ * win, so on Vercel the request's Host / X-Forwarded-Host headers are only used in local dev.
+ */
+export function publicOrigin(h: Pick<Headers, 'get'>): string | null {
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (configured) return configured.replace(/\/+$/, '');
   const production = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
   if (production) return `https://${production.replace(/^https?:\/\//, '').replace(/\/+$/, '')}`;
-  const host = (req.headers.get('x-forwarded-host') ?? req.headers.get('host'))?.split(',')[0]?.trim();
-  if (!host) return new URL(req.url).origin;
+  const host = (h.get('x-forwarded-host') ?? h.get('host'))?.split(',')[0]?.trim();
+  if (!host) return null;
   const local = /^(localhost|127\.|\[::1\])/.test(host);
-  const proto = req.headers.get('x-forwarded-proto')?.split(',')[0]?.trim() || (local ? 'http' : 'https');
+  const proto = h.get('x-forwarded-proto')?.split(',')[0]?.trim() || (local ? 'http' : 'https');
   return `${proto}://${host}`;
 }
 

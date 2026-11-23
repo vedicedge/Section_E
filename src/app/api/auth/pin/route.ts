@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { HttpError, clientIp, ok, readJson, route } from '@/lib/http';
-import { enforce, reset } from '@/lib/rate-limit';
+import { assertWithinBudget, enforce, recordFailure, reset } from '@/lib/rate-limit';
+import { pinFailureBudgets } from '@/lib/login-budgets';
 import { setStudentSession } from '@/lib/session';
 import { claimStudent, findStudent, issueRecoveryCode, verifyStudentPin } from '@/lib/students';
 import { firstName, normaliseRoll } from '@/lib/names';
@@ -28,9 +29,15 @@ export const POST = route(async (req) => {
   }
 
   await enforce(`pin-roll:${student.roll_no}`, 6, 15 * 60, 'Too many wrong PINs for this roll number.');
+  const daily = pinFailureBudgets(student.roll_no);
+  await assertWithinBudget(daily, 'Too many wrong PINs for this roll number today. Tap “Forgot PIN?” to use your recovery code.');
   const verified = await verifyStudentPin(student.roll_no, pin);
-  if (!verified) throw new HttpError(401, 'That PIN doesn’t match. Forgot it? Tap “Forgot PIN?” below.', 'wrong_pin');
+  if (!verified) {
+    await recordFailure(daily);
+    throw new HttpError(401, 'That PIN doesn’t match. Forgot it? Tap “Forgot PIN?” below.', 'wrong_pin');
+  }
   await reset(`pin-roll:${student.roll_no}`);
+  await reset(daily[0]!.key);
   await setStudentSession(verified.roll_no, Number(verified.session_version));
   return ok({ rollNo: verified.roll_no, firstName: firstName(verified.name) });
 });

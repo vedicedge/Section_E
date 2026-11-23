@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { env } from '@/lib/env';
 import { isClassHappening, nextClassOf, type DueContext } from '@/lib/homework/due';
+import { publicOrigin } from '@/lib/http';
 import { guessSubject } from '@/lib/homework/email';
 import { inboxStatus, pendingSuggestions } from '@/lib/homework/inbox';
 import { whatsappText } from '@/lib/homework/messages';
@@ -54,13 +55,7 @@ function boardSubjects(subjects: SubjectOption[], ctx: DueContext | null, givenO
 }
 
 async function siteUrl(): Promise<string | null> {
-  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
-  const h = await headers();
-  const host = (h.get('x-forwarded-host') ?? h.get('host'))?.split(',')[0]?.trim();
-  if (!host) return null;
-  const local = /^(localhost|127\.|\[::1\])/.test(host);
-  const proto = h.get('x-forwarded-proto')?.split(',')[0]?.trim() || (local ? 'http' : 'https');
-  return `${proto}://${host}`;
+  return publicOrigin(await headers());
 }
 
 export default async function AdminHomework({ searchParams }: Props) {
