@@ -16,6 +16,7 @@ const LINKS = [
   { href: '/admin/announcements', label: 'Announcements' },
   { href: '/admin/placements', label: 'Placements' },
   { href: '/admin/dates', label: 'Dates & exams' },
+  { href: '/admin/revision', label: 'Revision' },
   { href: '/admin/extras', label: 'Posters, links & study' },
 ];
 

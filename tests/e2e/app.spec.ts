@@ -1159,4 +1159,121 @@ ${istDay(5)}, MM II, End-term exam`);
     expect(later[0]!.guests).toEqual(['p905@imi.edu']);
     await admin.close();
   });
+
+  test('revision mode: hidden until it opens, then students write, check and nail answers privately', async ({ browser }) => {
+    const admin = await browser.newPage({ storageState: adminState });
+    const student = await browser.newPage();
+    // A poster from an earlier test pops up once per visit and covers the page.
+    await student.goto('/register');
+    await student.getByRole('dialog').getByRole('button', { name: 'Close' }).click({ timeout: 3000 }).catch(() => undefined);
+    await signIn(student, '26PGDM902', '2468');
+    const stamp = Date.now().toString(36);
+    const visibility = admin.getByTestId('revision-visibility');
+
+    // Hidden: students get a plain 404 and no menu link; the admin can still preview it.
+    await admin.goto('/admin/revision');
+    await admin.getByLabel('Hidden').check();
+    await admin.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(visibility).toContainText('Hidden from students.');
+    // (The (main) loading screen streams the page, so the not-found page arrives with a 200 status.)
+    await student.goto('/revision');
+    await expect(student.getByText('This page could not be found.')).toBeVisible();
+    await expect(student.getByRole('heading', { name: 'Revision' })).toHaveCount(0);
+    await student.goto('/seat');
+    await expect(student.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Revision' })).toHaveCount(0);
+
+    // A date in the future keeps it hidden, and says until when.
+    await admin.getByLabel('Opening date').fill('2099-12-15');
+    await admin.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(visibility).toContainText('Hidden from students until');
+
+    // One question through the form, two pasted (all or nothing), one edited, one deleted (asks first).
+    const title = `Five forces ${stamp}`;
+    const form = admin.locator('#revision-form');
+    await form.getByLabel('Subject').fill('sm');
+    await form.getByLabel('Time to write (minutes)').fill('12');
+    await form.getByLabel('Short title').fill(title);
+    await form.getByLabel('Question or case').fill('A D2C skincare brand wants to enter tier-2 cities. Advise it.');
+    await form.getByLabel('Model answer').fill(`MODEL-${stamp}: entrants, buyers, then a recommendation.`);
+    await form.getByLabel(/Key points/).fill('- Threat of new entrants\n- Buyer power');
+    await form.getByRole('button', { name: 'Add question' }).click();
+    await expect(admin.getByText('Question added.')).toBeVisible();
+
+    const bulk = admin.getByLabel('Questions', { exact: true });
+    await bulk.fill(`Question: Broken one\n---\nQuestion: Fine\nModel answer: ok`);
+    await admin.getByLabel('Subject for questions without one (optional)').fill('CF');
+    await admin.getByRole('button', { name: 'Add all' }).click();
+    await expect(admin.getByText('Question 1: Add the model answer.')).toBeVisible();
+    await bulk.fill(`Title: NPV ${stamp}\nQuestion: What is NPV?\nModel answer: PV of flows minus investment.\n---\nTitle: Drop me ${stamp}\nQuestion: q\nModel answer: a`);
+    await admin.getByRole('button', { name: 'Add all' }).click();
+    await expect(admin.getByText('2 questions added.')).toBeVisible();
+
+    const item = (name: string) => admin.getByTestId('revision-admin-item').filter({ hasText: name });
+    await item(`NPV ${stamp}`).getByRole('button', { name: 'Edit' }).click();
+    await form.getByLabel('Short title').fill(`NPV explained ${stamp}`);
+    await form.getByRole('button', { name: 'Save changes' }).click();
+    await expect(admin.getByText('Question updated.')).toBeVisible();
+    await expect(item(`NPV explained ${stamp}`)).toHaveCount(1);
+
+    await item(`Drop me ${stamp}`).getByRole('button', { name: 'Delete' }).click();
+    await expect(item(`Drop me ${stamp}`)).toHaveCount(1); // first click only asks
+    await item(`Drop me ${stamp}`).getByRole('button', { name: 'Confirm delete' }).click();
+    await expect(item(`Drop me ${stamp}`)).toHaveCount(0);
+
+    // Students' API is closed too while it's hidden.
+    expect((await student.request.post('/api/revision/whatever', { data: { draft: 'x' }, headers: { Origin: new URL(student.url()).origin } })).status()).toBe(404);
+
+    // Open now: the menu link appears and the questions are listed.
+    await admin.getByLabel('Open now').check();
+    await admin.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(visibility).toContainText('Students can see it now.');
+    await student.goto('/revision');
+    await expect(student.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Revision' })).toBeVisible();
+    await expect(student.getByTestId('revision-item').filter({ hasText: title })).toContainText('Not started');
+    await expect(student.getByTestId('revision-item').filter({ hasText: `NPV explained ${stamp}` })).toBeVisible();
+
+    // Write against the clock; the draft is saved and comes back after a reload.
+    await student.getByTestId('revision-item').filter({ hasText: title }).click();
+    await expect(student.getByRole('heading', { level: 1, name: title })).toBeVisible();
+    expect(await student.content()).not.toContain(`MODEL-${stamp}`); // the model answer stays on the server until asked for
+    await expect(student.getByTestId('revision-clock')).toHaveText('12:00');
+    await student.getByRole('button', { name: 'Start the clock' }).click();
+    await expect(student.getByTestId('revision-clock')).not.toHaveText('12:00');
+    await student.getByRole('button', { name: 'Pause' }).click();
+    await student.getByTestId('revision-answer').fill(`New entrants face low barriers (draft ${stamp}).`);
+    await expect(student.getByText('Saved, only you can see it')).toBeVisible();
+    await student.reload();
+    await expect(student.getByTestId('revision-answer')).toHaveValue(`New entrants face low barriers (draft ${stamp}).`);
+
+    // Check: model answer and key points appear; ticks and "Nailed it" are saved.
+    await student.getByRole('button', { name: 'Check against the model answer' }).click();
+    await expect(student.getByText(`MODEL-${stamp}`)).toBeVisible();
+    await student.getByLabel('Threat of new entrants').check();
+    await expect(student.getByTestId('revision-covered')).toHaveText('(1 of 2 covered)');
+    await student.getByRole('button', { name: 'Nailed it' }).click();
+    await expect(student.getByRole('button', { name: /Nailed it \(undo\)/ })).toBeVisible();
+    await student.reload();
+    await expect(student.getByText(`MODEL-${stamp}`)).toBeVisible();
+    await expect(student.getByLabel('Threat of new entrants')).toBeChecked();
+    await student.goto('/revision');
+    await expect(student.locator('#to-revise').locator('..').getByTestId('revision-item').filter({ hasText: title })).toHaveCount(0);
+    await student.locator('summary', { hasText: 'Nailed' }).click();
+    await expect(student.getByTestId('revision-item').filter({ hasText: title })).toContainText('Nailed it');
+
+    // The admin sees only counts, never the answer; visitors without a roll number are asked to register.
+    await admin.goto('/admin/revision');
+    await expect(item(title)).toContainText('started by 1, nailed by 1');
+    expect(await admin.content()).not.toContain(`draft ${stamp}`);
+    const visitor = await browser.newPage();
+    await visitor.goto('/revision');
+    await visitor.getByRole('dialog').getByRole('button', { name: 'Close' }).click({ timeout: 3000 }).catch(() => undefined);
+    await expect(visitor.getByRole('link', { name: 'Register to start' })).toBeVisible();
+
+    // Back to hidden, as it will be on the live site until 15 Dec.
+    await admin.getByLabel('Open on a date').check();
+    await admin.getByLabel('Opening date').fill('2099-12-15');
+    await admin.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(visibility).toContainText('Hidden from students until');
+    await Promise.all([visitor.close(), student.close(), admin.close()]);
+  });
 });

@@ -10,7 +10,8 @@
   color: var(--ink);
   place-items: center;
 }
-@media (max-width: 979px) {
+/* Same breakpoint as the bar's links in SiteHeader.module.css. */
+@media (max-width: 1079px) {
   .trigger {
     display: grid;
   }
