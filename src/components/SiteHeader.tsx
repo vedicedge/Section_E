@@ -4,6 +4,7 @@ import { getStudent } from '@/lib/session';
 import { isAttendanceEnabled } from '@/lib/attendance/repo';
 import { pendingDueCount } from '@/lib/homework/repo';
 import { isTimetableEnabled } from '@/lib/timetable/service';
+import { revisionOpenNow } from '@/lib/revision/repo';
 import { addDays, todayISO } from '@/lib/time';
 import { initials } from '@/lib/names';
 import { Logo } from './Logo';
@@ -17,6 +18,8 @@ import styles from './SiteHeader.module.css';
 export const timetableEnabled = cache(isTimetableEnabled);
 /** The Attendance tab switch, read once per request (header, footer and landing page). Never throws. */
 export const attendanceEnabled = cache(isAttendanceEnabled);
+/** Whether Revision is open to students yet (hidden until its opening date). Never throws. */
+export const revisionOpen = cache(revisionOpenNow);
 
 async function dueTomorrowFor(rollNo: string): Promise<number> {
   try {
@@ -30,9 +33,9 @@ async function dueTomorrowFor(rollNo: string): Promise<number> {
 
 /** The translucent bar on every student page: logo · page links · theme · account (menu on phones). */
 export async function SiteHeader() {
-  const [student, timetable, attendance] = await Promise.all([getStudent(), timetableEnabled(), attendanceEnabled()]);
+  const [student, timetable, attendance, revision] = await Promise.all([getStudent(), timetableEnabled(), attendanceEnabled(), revisionOpen()]);
   const dueTomorrow = student ? await dueTomorrowFor(student.rollNo) : 0;
-  const links = navLinks(timetable, attendance);
+  const links = navLinks(timetable, attendance, revision);
   return (
     <header className={styles.header}>
       <nav className={styles.inner} aria-label="Main">

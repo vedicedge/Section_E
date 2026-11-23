@@ -162,5 +162,6 @@ export async function deleteStudent(roll: string) {
   await query('DELETE FROM quiz_attempts WHERE roll_no = $1', [roll]);
   await query('DELETE FROM announcement_seen WHERE roll_no = $1', [roll]);
   await query('DELETE FROM mistakes_cleared WHERE roll_no = $1', [roll]);
+  await query('DELETE FROM revision_progress WHERE roll_no = $1', [roll]);
   await query('DELETE FROM students WHERE roll_no = $1', [roll]);
 }

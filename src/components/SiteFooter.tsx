@@ -1,11 +1,11 @@
 import Link from 'next/link';
-import { attendanceEnabled, timetableEnabled } from './SiteHeader';
+import { attendanceEnabled, revisionOpen, timetableEnabled } from './SiteHeader';
 import { navLinks } from './nav';
 import styles from './SiteFooter.module.css';
 
 export async function SiteFooter() {
-  const [timetable, attendance] = await Promise.all([timetableEnabled(), attendanceEnabled()]);
-  const links = [{ href: '/', label: 'Home' }, ...navLinks(timetable, attendance)];
+  const [timetable, attendance, revision] = await Promise.all([timetableEnabled(), attendanceEnabled(), revisionOpen()]);
+  const links = [{ href: '/', label: 'Home' }, ...navLinks(timetable, attendance, revision)];
   return (
     <footer className={styles.footer}>
       <div className={`container ${styles.inner}`}>

@@ -343,4 +343,33 @@ export const MIGRATIONS: string[] = [
   ALTER TABLE placement_events ADD COLUMN cancel_claimed_at TIMESTAMPTZ;
   ALTER TABLE placement_events ADD COLUMN cancel_sent_at TIMESTAMPTZ;
   `,
+
+  // 14 — revision mode: written-answer practice questions with a model answer and key points, and each
+  //      student's private draft, ticked key points and "nailed it" per question.
+  `
+  CREATE TABLE revision_questions (
+    id           TEXT PRIMARY KEY,
+    subject      TEXT NOT NULL,
+    title        TEXT NOT NULL,
+    prompt       TEXT NOT NULL,
+    minutes      INTEGER NOT NULL DEFAULT 15 CHECK (minutes BETWEEN 1 AND 180),
+    marks        INTEGER CHECK (marks BETWEEN 1 AND 100),
+    model_answer TEXT NOT NULL,
+    key_points   JSONB NOT NULL DEFAULT '[]'::jsonb,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX revision_questions_subject_idx ON revision_questions (subject, created_at);
+
+  CREATE TABLE revision_progress (
+    roll_no     TEXT NOT NULL,
+    question_id TEXT NOT NULL REFERENCES revision_questions(id) ON DELETE CASCADE,
+    draft       TEXT NOT NULL DEFAULT '',
+    covered     JSONB NOT NULL DEFAULT '[]'::jsonb,
+    revealed_at TIMESTAMPTZ,
+    nailed_at   TIMESTAMPTZ,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (roll_no, question_id)
+  );
+  `,
 ];

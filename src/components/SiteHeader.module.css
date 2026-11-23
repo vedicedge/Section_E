@@ -31,7 +31,7 @@
   flex: 1 1 auto;
   display: flex;
   justify-content: center;
-  gap: 4px clamp(14px, 1.8vw, 26px);
+  gap: 4px clamp(12px, 1.4vw, 22px);
   font-size: 13.5px;
 }
 .link {
@@ -111,7 +111,8 @@
   font-size: 14px;
 }
 
-@media (max-width: 979px) {
+/* Up to 10 links (with Timetable, Attendance and Revision on) need about 1,050px; below that, the menu button. */
+@media (max-width: 1079px) {
   .links {
     display: none;
   }
