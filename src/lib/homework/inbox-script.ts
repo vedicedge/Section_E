@@ -223,7 +223,24 @@ function checkPlacements() {
           task.guests.forEach(function (g) { existing.addGuest(g); });
           calendarEventId = existing.getId();
           remember(eventId, calendarEventId);
+        } else if (typeof Calendar !== 'undefined') {
+          // Google Calendar API service: the guest list is hidden BEFORE the invites go out, so no
+          // student's invite email shows who else is on the list.
+          const made = Calendar.Events.insert({
+            summary: task.title,
+            location: task.location || '',
+            description: task.description,
+            start: { dateTime: task.startIso },
+            end: { dateTime: task.endIso },
+            attendees: task.guests.map(function (g) { return { email: g }; }),
+            guestsCanSeeOtherGuests: false,
+          }, 'primary', { sendUpdates: 'all' });
+          // CalendarApp (used for updates and withdrawals) looks events up by their iCalUID.
+          calendarEventId = made.iCalUID;
+          remember(eventId, calendarEventId);
         } else {
+          // Without the Google Calendar API service the invite email still lists every guest.
+          Logger.log('Add the Google Calendar API under Services so invites hide the guest list.');
           const event = CalendarApp.getDefaultCalendar().createEvent(task.title, new Date(task.startIso), new Date(task.endIso), {
             location: task.location || '',
             description: task.description,
@@ -272,6 +289,9 @@ function checkPlacements() {
 }
 
 function setUp() {
+  if (typeof Calendar === 'undefined') {
+    Logger.log('Tip: click + next to Services, add "Google Calendar API" and save, so PPT invites hide the guest list.');
+  }
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (t.getHandlerFunction() === 'checkInbox') ScriptApp.deleteTrigger(t);
   });

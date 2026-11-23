@@ -44,6 +44,17 @@ describe('generated script behaviour', () => {
     expect(script).toContain('MAX_ATTACHMENT_BYTES = 2200000');
     expect(script).toContain('MAX_ATTACHMENTS = 5');
   });
+  it('hides the guest list before invites are sent when the Calendar API service is on', () => {
+    const insert = script.indexOf('Calendar.Events.insert(');
+    expect(insert).toBeGreaterThan(-1);
+    const call = script.slice(insert, script.indexOf("{ sendUpdates: 'all' })", insert));
+    expect(call).toContain('guestsCanSeeOtherGuests: false');
+    expect(call).toContain('attendees:');
+    expect(script).toContain('calendarEventId = made.iCalUID');
+    expect(script).toContain("typeof Calendar !== 'undefined'");
+    // The script must still parse as JavaScript.
+    expect(() => new Function(script)).not.toThrow();
+  });
   it('checks the sender per message, dedupes invites and keeps properties small', () => {
     for (const s of ['.trim().toLowerCase() !== sender', 'slice(-300)', 'CalendarApp.getEventById', 'deleteEvent()', 'cancelled: true', 'PLACEMENT_CREATED', 'slice(-300)', '(filename:xlsx OR filename:xls)', 'finally']) {
       expect(script).toContain(s);
