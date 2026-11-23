@@ -385,6 +385,10 @@ function InboxSetup({ inbox, now }: { inbox: InboxInfo; now: number }) {
           <ol className={sq.steps}>
             <li>Sign in to your college Google account and open script.google.com → New project.</li>
             <li>Replace the code with the script below and save.</li>
+            <li>
+              Next to <strong>Services</strong> on the left, click +, choose “Google Calendar API” and press Add, so PPT
+              invites don’t show students who else is on the list.
+            </li>
             <li>Choose “setUp” in the toolbar, press Run, and allow access to Gmail.</li>
           </ol>
           <div className={tt.scriptBox}>
