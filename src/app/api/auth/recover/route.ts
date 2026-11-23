@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { HttpError, clientIp, ok, readJson, route } from '@/lib/http';
-import { enforce } from '@/lib/rate-limit';
+import { enforce, reset } from '@/lib/rate-limit';
+import { pinFailureBudgets } from '@/lib/login-budgets';
 import { setStudentSession } from '@/lib/session';
 import { checkRecoveryCode, findStudent, issueRecoveryCode, setStudentPin } from '@/lib/students';
 import { firstName, normaliseRoll } from '@/lib/names';
@@ -28,6 +29,9 @@ export const POST = route(async (req) => {
   }
 
   const row = await setStudentPin(student.roll_no, pin);
+  // The owner proved who they are, so wrong-PIN guesses made before (by anyone) no longer count.
+  await reset(`pin-roll:${row.roll_no}`);
+  await reset(pinFailureBudgets(row.roll_no)[0]!.key);
   const recoveryCode = await issueRecoveryCode(row.roll_no);
   await setStudentSession(row.roll_no, Number(row.session_version));
   return ok({ rollNo: row.roll_no, firstName: firstName(row.name), recoveryCode });

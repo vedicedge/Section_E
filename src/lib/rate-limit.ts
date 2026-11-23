@@ -27,6 +27,36 @@ export async function enforce(key: string, limit: number, windowSeconds: number,
   }
 }
 
+/**
+ * Failure budgets: unlike `enforce`, nothing is counted here. Check the budget before trying a
+ * secret, and call `recordFailure` only when the attempt was wrong, so successful sign-ins never
+ * use it up. The counters are per account, not per IP, so many addresses don't buy more guesses.
+ */
+export interface FailureBudget {
+  key: string;
+  limit: number;
+  windowSeconds: number;
+}
+
+export async function assertWithinBudget(budgets: FailureBudget[], message: string) {
+  for (const b of budgets) {
+    const row = await queryOne<{ count: number; reset_at: Date }>(
+      'SELECT count, reset_at FROM rate_limits WHERE key = $1 AND reset_at > now()',
+      [b.key],
+    );
+    if (row && Number(row.count) >= b.limit) {
+      const retryAfter = Math.max(1, Math.ceil((new Date(row.reset_at).getTime() - Date.now()) / 1000));
+      const minutes = Math.ceil(retryAfter / 60);
+      const wait = minutes >= 90 ? `~${Math.round(minutes / 60)} h` : `~${minutes} min`;
+      throw new HttpError(429, `${message} (try again in ${wait})`, 'rate_limited', { retryAfter });
+    }
+  }
+}
+
+export async function recordFailure(budgets: FailureBudget[]) {
+  for (const b of budgets) await hit(b.key, b.limit, b.windowSeconds);
+}
+
 export async function reset(key: string) {
   await query('DELETE FROM rate_limits WHERE key = $1', [key]);
 }
