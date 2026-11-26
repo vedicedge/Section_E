@@ -20,7 +20,7 @@ export default async function AdminExtras() {
         <div>
           <h1 className={styles.title}>Posters &amp; links</h1>
           <p className={styles.lede}>
-            Event posters pop up for every visitor between their dates (once per visit, and they can close them). Mock tests made in Claude
+            Event posters show between their dates in the Events row on the home page and on the Posters page (no pop-ups). Mock tests made in Claude
             appear on the OLT Mock Tests page. Notes and videos appear on the Study material page.
           </p>
         </div>
