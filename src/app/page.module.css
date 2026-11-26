@@ -156,6 +156,11 @@
   display: none;
 }
 
+/* Event posters, between Coming up and the tools. */
+.posters {
+  padding: 0 0 clamp(40px, 7vw, 80px);
+}
+
 /* ----------------------------------------------------------------- tools */
 
 .tools {

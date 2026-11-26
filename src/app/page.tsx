@@ -12,6 +12,8 @@ import { myGroups } from '@/lib/groups/repo';
 import { Reveal } from '@/components/Reveal';
 import { unseenAnnouncement } from '@/lib/announcements';
 import { AnnouncementBanner } from '@/components/AnnouncementBanner';
+import { PosterStrip } from '@/components/PosterStrip';
+import { activePromotions } from '@/lib/extras';
 import { TodayInE, TodaySkeleton } from './TodayInE';
 import { ComingUp } from './ComingUp';
 import { ScrollStory } from './ScrollStory';
@@ -125,7 +127,7 @@ interface Tool {
 
 export default async function Home() {
   const studentLoad = getStudent();
-  const [s, student, timetable, h, studyCount, groupCount, notice] = await Promise.all([
+  const [s, student, timetable, h, studyCount, groupCount, notice, posters] = await Promise.all([
     stats(),
     studentLoad,
     timetableEnabled(),
@@ -134,6 +136,7 @@ export default async function Home() {
     // A count is not worth failing the landing page over.
     studentLoad.then((st) => (st ? myGroups(st.rollNo).then((g) => g.length) : 0)).catch(() => 0),
     studentLoad.then((st) => (st ? unseenAnnouncement(st.rollNo) : null)).catch(() => null),
+    activePromotions(),
   ]);
   const first = student?.name.split(' ')[0];
 
@@ -295,6 +298,15 @@ export default async function Home() {
             </Suspense>
           </Reveal>
         </section>
+
+        {/* Event posters sit here and on /posters, never in a pop-up over the page. */}
+        {posters.length > 0 && (
+          <section className={styles.posters} aria-label="Event posters">
+            <Reveal className="container">
+              <PosterStrip posters={posters} />
+            </Reveal>
+          </section>
+        )}
 
         {/* The tools as a scroll story: a sticky counter, a line that fills, cards that slide and blur in.
             Browsers without scroll-driven animations get the same cards as a plain list. */}

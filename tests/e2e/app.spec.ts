@@ -546,9 +546,8 @@ test.describe.serial('Section E', () => {
     expect((await request.get(`/api/calendar/${'x'.repeat(32)}.ics`)).status()).toBe(404);
   });
 
-  // One admin sign-in covers all of /admin/extras (sign-ins are rate-limited). Study material goes
-  // first, before a poster exists, so no pop-up sits over the student's page.
-  test('study material is listed for registered students; posters pop up; Claude mock tests are listed', async ({ page, browser }) => {
+  // One admin sign-in covers all of /admin/extras (sign-ins are rate-limited).
+  test('study material is listed for registered students; posters show on the home page and /posters; Claude mock tests are listed', async ({ page, browser }) => {
     await adminLogin(page);
     await page.goto('/admin/extras');
     const refused = await page.request.post('/api/admin/study-materials', { data: { title: 'Bad', url: 'http://example.com/x' } });
@@ -604,11 +603,15 @@ test.describe.serial('Section E', () => {
 
     const visitor = await browser.newPage();
     await visitor.goto('/tests');
-    await expect(visitor.getByRole('dialog', { name: 'E2E Fest' })).toBeVisible();
-    await visitor.getByRole('button', { name: 'Close' }).click();
+    // Posters never pop up over a page: they live in the home page's Events row and on /posters.
     await expect(visitor.getByRole('dialog')).toHaveCount(0);
     await expect(visitor.getByRole('link', { name: 'E2E Mock' })).toHaveAttribute('href', 'https://claude.ai/public/artifacts/e2e-mock');
-    await visitor.reload();
+    await visitor.goto('/');
+    const strip = visitor.getByTestId('poster-strip');
+    await expect(strip.getByRole('img', { name: 'E2E Fest' })).toBeVisible();
+    await strip.getByRole('link', { name: /E2E Fest/ }).click();
+    await expect(visitor).toHaveURL(/\/posters#poster-/);
+    await expect(visitor.getByTestId('posters').getByRole('img', { name: 'E2E Fest' })).toBeVisible();
     await expect(visitor.getByRole('dialog')).toHaveCount(0);
     await visitor.close();
 
@@ -672,10 +675,9 @@ test.describe.serial('Section E', () => {
     const oldKey = await page.request.get('/api/echo/feed', { headers: { Authorization: 'Bearer echo_wrong' } });
     expect(oldKey.status()).toBe(401);
 
-    // A student sees only their own group and its members. (The poster above pops up once per visit.)
+    // A student sees only their own group and its members.
     const member = await browser.newPage();
     await member.goto('/register');
-    await member.getByRole('button', { name: 'Close' }).click();
     await signIn(member, '26PGDM902', '2468');
     await member.goto('/groups');
     const card = member.getByRole('region', { name: 'Group 1' });
@@ -723,7 +725,6 @@ ${istDay(5)}, MM II, End-term exam`);
 
     const student = await browser.newPage();
     await student.goto('/register');
-    await student.getByRole('button', { name: 'Close' }).click(); // the poster from the test above
     await signIn(student, '26PGDM902', '2468');
     // "Ask Echo" sends a signed-in student to the Echo copy they were invited to (26PGDM902 is on the second).
     const toEcho = await student.request.get('/echo', { maxRedirects: 0 });
@@ -974,12 +975,9 @@ ${istDay(5)}, MM II, End-term exam`);
     await approvePending();
 
     const student = await browser.newPage();
-    // A poster from an earlier test pops up once per visit and covers the page.
     await student.goto('/register');
-    await student.getByRole('dialog').getByRole('button', { name: 'Close' }).click({ timeout: 3000 }).catch(() => undefined);
     await signIn(student, '26PGDM902', '2468');
     await student.goto('/');
-    await student.getByRole('dialog').getByRole('button', { name: 'Close' }).click({ timeout: 3000 }).catch(() => undefined);
     await expect(student.getByTestId('coming-up')).toBeVisible();
     await expect(student.getByText(title)).toHaveCount(0);
     const link = await student.request.post('/api/calendar/link', { data: {}, headers: origin });
@@ -1163,9 +1161,7 @@ ${istDay(5)}, MM II, End-term exam`);
   test('revision mode: hidden until it opens, then students write, check and nail answers privately', async ({ browser }) => {
     const admin = await browser.newPage({ storageState: adminState });
     const student = await browser.newPage();
-    // A poster from an earlier test pops up once per visit and covers the page.
     await student.goto('/register');
-    await student.getByRole('dialog').getByRole('button', { name: 'Close' }).click({ timeout: 3000 }).catch(() => undefined);
     await signIn(student, '26PGDM902', '2468');
     const stamp = Date.now().toString(36);
     const visibility = admin.getByTestId('revision-visibility');
@@ -1266,7 +1262,6 @@ ${istDay(5)}, MM II, End-term exam`);
     expect(await admin.content()).not.toContain(`draft ${stamp}`);
     const visitor = await browser.newPage();
     await visitor.goto('/revision');
-    await visitor.getByRole('dialog').getByRole('button', { name: 'Close' }).click({ timeout: 3000 }).catch(() => undefined);
     await expect(visitor.getByRole('link', { name: 'Register to start' })).toBeVisible();
 
     // Back to hidden, as it will be on the live site until 15 Dec.
